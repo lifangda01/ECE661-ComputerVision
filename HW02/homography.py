@@ -60,21 +60,20 @@ def project_world_into_image(world_img, image_img, H):
 			c_w = c_w / z_w
 			if 0 <= r_w < world_img.shape[0]-1 and 0 <= c_w < world_img.shape[1]-1:
 				proj_img[r][c] = get_pixel_by_nearest_neighbor(world_img, r_w, c_w)
-		print 'row', r
 	return proj_img
 
-def transform_image_into_image(image_img_1, image_img_2, H):
+def transform_image_into_image(image_img_1, H):
 	'''
 		Transform image_img_1 into the view of image_img_2, given their homography H.
 		@image_img_1: np.ndarray of the image to be tranformed
-		@image_img_2: np.ndarray of the image with desired view
 		@H: the transformation matrix
 		@return: np.ndarrary of the transformed image		
 	'''
-	trans_img = np.ndarray(image_img_2.shape)
+	(num_row, num_col, off_row, off_col) = get_bounding_box_after_transformation(image_img_1, H)
+	trans_img = np.ndarray( (num_row, num_col, 3) )
 	for r in range(trans_img.shape[0]):
 		for c in range(trans_img.shape[1]):
-			p_t = np.array([[r,c,1]])
+			p_t = np.array([[r+off_row,c+off_col,1]])
 			(r_1, c_1, z_1) = H.I * p_t.T
 			r_1 = r_1 / z_1
 			c_1 = c_1 / z_1
@@ -82,7 +81,6 @@ def transform_image_into_image(image_img_1, image_img_2, H):
 				trans_img[r][c] = get_pixel_by_nearest_neighbor(image_img_1, r_1, c_1)
 			else:
 				trans_img[r][c] = BACKGROUND_COLOR
-		print 'row', r
 	return trans_img		
 
 def get_pixel_by_nearest_neighbor(image, row_f, col_f):
@@ -95,6 +93,28 @@ def get_pixel_by_nearest_neighbor(image, row_f, col_f):
 	row = int(round(row_f))
 	col = int(round(col_f))
 	return image[row][col]
+
+def get_bounding_box_after_transformation(image, H):
+	'''
+		Given an image and the transformation matrix to be applied, 
+		calculate the bounding box of the image after transformation.
+		@image: image to transform
+		@H: transformation matrix to be applied
+		@return: (num_row, num_col, off_row, off_col)
+	'''
+	(h, w, c) = image.shape
+	corners_1 = [(0,0), (0,w), (h,0), (h,w)]
+	corners_2_row = []
+	corners_2_col = []
+	for corner in corners_1:
+		(r,c) = corner
+		p_1 = np.array([[r,c,1]])
+		(r_2, c_2, z_2) = H * p_1.T
+		corners_2_row.append( int(r_2 / z_2) )
+		corners_2_col.append( int(c_2 / z_2) )
+	return (max(corners_2_row)-min(corners_2_row)+1, max(corners_2_col)-min(corners_2_col)+1,
+			min(corners_2_row), min(corners_2_col))
+
 
 def resize_image_by_ratio(image, ratio):
 	'''
@@ -152,7 +172,7 @@ def task2():
 	H_bc = get_transformation_matrix(image_hc_b, image_hc_c)
 	H_ac = H_ab * H_bc
 
-	trans_img = transform_image_into_image(image_img_a, image_img_c, H_ac)
+	trans_img = transform_image_into_image(image_img_a, H_ac)
 	cv2.imwrite('images/task2.jpg', trans_img)	
 
 def task3():
@@ -172,25 +192,25 @@ def task3():
 	image_hc_f = [( int(x*RESIZE_RATIO), int(y*RESIZE_RATIO) ) for (x,y) in IMAGE_HC_F]
 
 	# Repeat task 1
-	# H_fd = get_transformation_matrix(image_hc_f, image_hc_d)
-	# H_fe = get_transformation_matrix(image_hc_f, image_hc_e)
+	H_fd = get_transformation_matrix(image_hc_f, image_hc_d)
+	H_fe = get_transformation_matrix(image_hc_f, image_hc_e)
 
-	# proj_img = project_world_into_image(image_img_f, image_img_d, H_fd)
-	# cv2.imwrite('images/task3_a.jpg', proj_img)
-	# proj_img = project_world_into_image(image_img_f, image_img_e, H_fe)
-	# cv2.imwrite('images/task3_b.jpg', proj_img)
+	proj_img = project_world_into_image(image_img_f, image_img_d, H_fd)
+	cv2.imwrite('images/task3_a.jpg', proj_img)
+	proj_img = project_world_into_image(image_img_f, image_img_e, H_fe)
+	cv2.imwrite('images/task3_b.jpg', proj_img)
 
 	# Repeat task 2
 	H_de = get_transformation_matrix(image_hc_d, image_hc_e)
 	H_ef = get_transformation_matrix(image_hc_e, image_hc_f)
 	H_df = H_de * H_ef	
 
-	trans_img = transform_image_into_image(image_img_d, image_img_f, H_df)
+	trans_img = transform_image_into_image(image_img_d, H_df)
 	cv2.imwrite('images/task3_c.jpg', trans_img)	
 
 def main():
-	# task1()
-	# task2()
+	task1()
+	task2()
 	task3()
 
 if __name__ == '__main__':
