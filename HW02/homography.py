@@ -52,10 +52,11 @@ def project_world_into_image(world_img, image_img, H):
 		@return: np.ndarrary of the image with projection
 	'''
 	proj_img = image_img.copy()
+	H_inv = H.I
 	for r in range(image_img.shape[0]):
 		for c in range(image_img.shape[1]):
 			p_i = np.array([[r,c,1]])
-			(r_w, c_w, z_w) = H.I * p_i.T
+			(r_w, c_w, z_w) = H_inv * p_i.T
 			r_w = r_w / z_w
 			c_w = c_w / z_w
 			if 0 <= r_w < world_img.shape[0]-1 and 0 <= c_w < world_img.shape[1]-1:
@@ -71,10 +72,11 @@ def transform_image_into_image(image_img_1, H):
 	'''
 	(num_row, num_col, off_row, off_col) = get_bounding_box_after_transformation(image_img_1, H)
 	trans_img = np.ndarray( (num_row, num_col, 3) )
+	H_inv = H.I
 	for r in range(trans_img.shape[0]):
 		for c in range(trans_img.shape[1]):
 			p_t = np.array([[r+off_row,c+off_col,1]])
-			(r_1, c_1, z_1) = H.I * p_t.T
+			(r_1, c_1, z_1) = H_inv * p_t.T
 			r_1 = r_1 / z_1
 			c_1 = c_1 / z_1
 			if 0 <= r_1 < image_img_1.shape[0]-1 and 0 <= c_1 < image_img_1.shape[1]-1:
