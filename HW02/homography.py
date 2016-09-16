@@ -21,7 +21,7 @@ def get_transformation_matrix(world_hc, image_hc):
 		@image_hc: list of HC point tuples
 		@return: 3x3 numpy matrix H
 	'''
-	# We need at least for point pairs
+	# We need at least four point pairs
 	if len(world_hc) != 4 or len(image_hc) != 4:
 		print "ERROR: not enough HC point pairs!"
 		return None
@@ -40,7 +40,7 @@ def get_transformation_matrix(world_hc, image_hc):
 	except np.linalg.LinAlgError:
 		print "ERROR: A is singular!"
 		return None
-	H = np.concatenate( (h,[[1]]), 0)
+	H = np.concatenate( (h,[[1.]]), 0)
 	return H.reshape(3,3)
 
 def project_world_into_image(world_img, image_img, H):
