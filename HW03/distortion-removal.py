@@ -1,12 +1,17 @@
 #!/usr/bin/python
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
+from matplotlib.image import AxesImage
 
 RESIZE_RATIO = 1.0
 BACKGROUND_COLOR = (0, 0, 0)
 # line(1,2) is parallel to line(3,4)
 IMAGE_HC_A = [(190,120), (69,540), (236,108), (120,546)]
 IMAGE_HC_A_1 = [(287,229), (280,250), (332,220), (326,255)]
+FLATIRON_PAIRS = [(157,98), (136,165), (157,98), (185,117), (190,120), (69,540), (190,120), (236,108),
+			(332,220), (287,229), (332,220), (326,255), (391,414), (302,416), (391,414), (408,312),
+			(354,364), (322,320), (354,364), (302,416)]
 
 def resize_image_by_ratio(image, ratio):
 	'''
@@ -40,6 +45,12 @@ def get_line(p1, p2):
 	p2 = np.array([p2[0], p2[1], 1.])
 	return np.cross(p1, p2)
 
+def get_lines(points):
+	lines = []
+	for i in range(len(points)/2):
+		lines.append( get_line(points[2*i], points[2*i+1]) )
+	return lines
+
 def get_pixel_by_nearest_neighbor(image, row_f, col_f):
 	'''
 		Get the pixel value based on float row and column numbers.
@@ -70,7 +81,7 @@ def get_projective_transformation_matrix(line1, line2, line3, line4):
 	H[2] = vl
 	return H
 
-def get_affine_transformation_matrix(line1, line2, line3, line4):
+def get_affine_transformation_matrix(lines):
 	'''
 		Given two pairs of lines that are supposed to be orthogonal in world plane,
 		find the homography matrix.
@@ -83,6 +94,10 @@ def get_affine_transformation_matrix(line1, line2, line3, line4):
 	# Ms = c --> s = inv(M)c
 	M = np.matrix( np.zeros((2,2)) )
 	c = np.matrix( np.zeros((2,1)) )
+	line1 = lines[0]
+	line2 = lines[1]
+	line3 = lines[2]
+	line4 = lines[3]
 	M[0] = [line1[0]*line2[0], line1[0]*line2[0] + line1[1]*line2[0]]
 	M[1] = [line3[0]*line4[0], line3[0]*line4[0] + line3[1]*line4[0]]
 	c[0] = -line1[1]*line2[1]
@@ -103,9 +118,8 @@ def get_affine_transformation_matrix(line1, line2, line3, line4):
 	H = np.matrix( np.zeros((3,3)) )
 	# np.dot is equivalent to matrix multiplication for 2D arrays
 	H[:2, :2] = np.dot(np.dot(U, D), U.T)
-	# H[:2, :2] = H[:2, :2] / H[1,1]
+	H[:2, :2] = H[:2, :2] / H[1,1]
 	H[2,2] = 1.
-	print H
 	return H
 
 def get_projective_and_affine_transformation_matrix(lines):
@@ -122,6 +136,7 @@ def get_projective_and_affine_transformation_matrix(lines):
 	# Mc = d --> c = inv(M)d
 	M = np.matrix( np.zeros((5,5)) )
 	d = np.matrix( np.zeros((5,1)) )
+	# print lines
 	for i in range( 5 ):
 		l = lines[2*i]
 		m = lines[2*i+1]
@@ -130,23 +145,38 @@ def get_projective_and_affine_transformation_matrix(lines):
 	try:
 		c = M.I * d
 	except np.linalg.LinAlgError:
-		print "ERROR: A is singular!"
+		print "ERROR: M is singular!"
 		return None
 	c = np.asarray(c).reshape(-1)
 	C_p = np.matrix([[c[0]   , c[1]/2., c[3]/2.],
 					 [c[1]/2., c[2]   , c[4]/2.],
 					 [c[3]/2., c[4]/2.,      1.]])
+	# Similar to the previous step
 	print C_p
+	S = C_p[:2, :2]
+	# S = S / S[1,1]
+	U, s, V = np.linalg.svd(S)
+	D = np.sqrt(np.diag(s))
+	# np.dot is equivalent to matrix multiplication for 2D arrays
+	A = np.dot(np.dot(U, D), U.T)
+	v = np.dot(A.I, C_p[:2,2])
+	H = np.matrix( np.zeros((3,3)) )
+	H[:2,:2] = A
+	# H[:2, :2] = H[:2, :2] / H[1,1]
+	H[2,:2] = v.T
+	H[2,2] = 1.
+	return H
 
 def get_affine_transformation_matrix_from_points(points):
-	return get_affine_transformation_matrix(
+	return get_affine_transformation_matrix([
 			get_line(points[0], points[1]), get_line(points[0], points[2]),
-			get_line(points[3], points[4]), get_line(points[3], points[5]) )
+			get_line(points[3], points[4]), get_line(points[3], points[5]) ])
 
 def get_projective_transformation_matrix_from_points(points):
-	return get_projective_transformation_matrix(
-			get_line(points[0], points[1]), get_line(points[2], points[3]),
-			get_line(points[0], points[2]), get_line(points[1], points[3]) )
+	return get_projective_transformation_matrix( get_lines(points) )
+
+def get_projective_and_affine_transformation_matrix_from_points(points):
+	return get_projective_and_affine_transformation_matrix( get_lines[points] )
 
 def apply_transformation_on_image(image, H):
 	'''
@@ -157,6 +187,7 @@ def apply_transformation_on_image(image, H):
 	'''
 	# First determine the size of the transformed image 
 	(num_row, num_col, off_row, off_col) = get_bounding_box_after_transformation(image, H)
+	print "New image size:", (num_row, num_col)
 	try:
 		trans_img = np.ndarray( (num_row, num_col, image.shape[2]) )
 	except IndexError:
@@ -192,43 +223,40 @@ def task1():
 	'''
 		Use two-step method to remove affine distortion
 	'''
-	image_img_a = cv2.imread('images/flatiron.jpg')
-	# image_img_b = cv2.imread('images/monalisa.jpg')
-	# image_img_c = cv2.imread('images/wideangle.jpg')
+	image_img_a = cv2.imread('images/flatiron_1.jpg')
 
 	image_img_a = resize_image_by_ratio(image_img_a, RESIZE_RATIO)
-	# image_img_b = resize_image_by_ratio(image_img_b, RESIZE_RATIO)
-	# image_img_c = resize_image_by_ratio(image_img_c, RESIZE_RATIO)
 
 	image_hc_a = [( int(x*RESIZE_RATIO), int(y*RESIZE_RATIO) ) for (x,y) in IMAGE_HC_A]
 	image_hc_a_1 = [( int(x*RESIZE_RATIO), int(y*RESIZE_RATIO) ) for (x,y) in IMAGE_HC_A_1]
-	# image_hc_b = [( int(x*RESIZE_RATIO), int(y*RESIZE_RATIO) ) for (x,y) in IMAGE_HC_B]
-	# image_hc_c = [( int(x*RESIZE_RATIO), int(y*RESIZE_RATIO) ) for (x,y) in IMAGE_HC_C]
 
 	H_ap = get_projective_transformation_matrix_from_points(image_hc_a)
 	trans_img = apply_transformation_on_image(image_img_a, H_ap)
-	cv2.imwrite('images/task1_ap.jpg', trans_img)
+	cv2.imwrite('images/task1_flatiron_per.jpg', trans_img)
 
 	image_hc_a = apply_transformation_on_points(image_hc_a, H_ap)
 	image_hc_a_1 = apply_transformation_on_points(image_hc_a_1, H_ap)
+
 	H_aa = get_affine_transformation_matrix_from_points(image_hc_a[:3] + image_hc_a_1[:3])
 
 	trans_img = apply_transformation_on_image(trans_img, H_aa.I)
-	cv2.imwrite('images/task1_aa.jpg', trans_img)
+	cv2.imwrite('images/task1_flatiron_affine.jpg', trans_img)
 
-	# proj_img = project_world_into_image(world_img, image_img_b, H_wb)
-	# cv2.imwrite('images/task1_b.jpg', proj_img)
-	# proj_img = project_world_into_image(world_img, image_img_c, H_wc)
-	# cv2.imwrite('images/task1_c.jpg', proj_img)
+def task2():	
+	'''
+		Use one-step method to remove affine distortion
+	'''
+	image = cv2.imread('images/flatiron_1.jpg')
+	image = resize_image_by_ratio(image, RESIZE_RATIO)
+	flatiron_pairs = [( int(x*RESIZE_RATIO), int(y*RESIZE_RATIO) ) for (x,y) in FLATIRON_PAIRS]
 
-def task2():
-	lines = [(1,2,3),(2,4,3),(8,2,6),(7,2,6),(435,345,23),
-			(24,68,3),(412,223,33),(435,345,23),(24,68,3),(412,223,33)]	
-	get_projective_and_affine_transformation_matrix(lines)
+	H_pa = get_projective_and_affine_transformation_matrix_from_points(flatiron_pairs) 
+	trans_img = apply_transformation_on_image(image, H_pa)
+	cv2.imwrite('images/task2_flatiron.jpg', trans_img)	
 
 def main():
 	task1()
-	# task2()
+	task2()
 
 if __name__ == '__main__':
 	main()
