@@ -1,7 +1,9 @@
 #!/usr/bin/python
 import numpy as np
 import cv2
+import time
 from matplotlib import pyplot as plt
+from matplotlib.patches import Circle
 
 RESIZE_RATIO = 1.0
 
@@ -47,7 +49,7 @@ def get_covar_matrix(drow, dcol):
 	drow2 = np.multiply(drow, drow)
 	dcol2 = np.multiply(dcol, dcol)
 	drowcol = np.multiply(drow, dcol)
-	return np.ndarray([
+	return np.array([
 		[np.sum( np.sum(dcol2) ), np.sum( np.sum(drowcol) ) ],
 		[np.sum( np.sum(drowcol) ), np.sum( np.sum(drow2) ) ]
 		])
@@ -60,44 +62,65 @@ def get_corner_response(covar, k=0.04):
 	'''
 	# Perform eigen decomposition to obtain eigen values
 	eigens = np.linalg.eigvals(covar)
-	lambda1 = eigen[0]
-	lambda2 = eigen[1]
+	lambda1, lambda2 = eigens[0], eigens[1]
 	det = lambda1 * lambda2
 	tr = lambda1 + lambda2
 	return det - k*tr
 
-def apply_threshold():
-	pass
-
 def apply_nms():
 	pass
 
-def get_harris_corners(image, sigma):
+def get_harris_corners(image, sigma, threshold):
 	'''
 		Find the corners in the input image using Harris corner detector.
 		@image: np.ndarray of input image, double type
 	'''
+	start = time.time()
+	corners = []
 	(h, w) = image.shape
 	drow_img, dcol_img = apply_haar_filter(image, 1.2)
+	corner_img = np.zeros((h,w))
 	# 5*sigma by 5*sigma neighboring window
 	# Size should be always odd
 	s = int(5*sigma) + (1 - int(5*sigma)%2)
+	hs = s/2
 	# Row means y, col means x
-	for r in xrange(s/2, h-s/2):
-		for c in xrange(s/2, w-s/2):
-			M = get_covar_matrix()
-			
+	for r in xrange(hs, h-hs):
+		for c in xrange(hs, w-hs):
+			M = get_covar_matrix(drow_img[r-hs:r+hs,c-hs:c+hs],
+								 dcol_img[r-hs:r+hs,c-hs:c+hs])
+			if np.linalg.matrix_rank(M, tol=10):
+				corner_img[r,c] = 0
+				continue
+			R = get_corner_response(M)
+			corner_img[r,c] = R
+			if R > threshold:
+				corners.append((r,c))
+	print 'Corner detection took', time.time()-start, 'seconds'
+	# plt.figure()
+	# plt.imshow(corner_img, cmap='gray')
+	# plt.title('Corner Response')
+	# plt.show()
+	return corners
 
 def main():
 	image = cv2.imread('images/pair3/1.jpg')
 	image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 	image = np.double(image)
-	drow_img, dcol_img = apply_haar_filter(image, 1.2)
-	plt.subplot(1,3,1), plt.imshow(image, cmap='gray')
-	plt.subplot(1,3,2), plt.imshow(drow_img, cmap='gray')
-	plt.subplot(1,3,3), plt.imshow(dcol_img, cmap='gray')
+	# drow_img, dcol_img = apply_haar_filter(image, 1.2)
+	# plt.subplot(1,3,1), plt.imshow(image, cmap='gray')
+	# plt.subplot(1,3,2), plt.imshow(drow_img, cmap='gray')
+	# plt.subplot(1,3,3), plt.imshow(dcol_img, cmap='gray')
+	# plt.show()
+	corners = get_harris_corners(image, 1.2, 150)
+	(h, w) = image.shape
+	fig, ax = plt.subplots(1)
+	ax.set_aspect('equal')
+	ax.imshow(image, cmap='gray')
+	for corner in corners:
+		ax.add_patch( Circle(corner, 5, fill=False, color=np.random.rand(3,1)) )
+	# ax.title('Corner Response')
 	plt.show()
-	corners = get_harris_corners(image)
 
 if __name__ == '__main__':
 	main()
