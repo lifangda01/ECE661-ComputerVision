@@ -92,12 +92,14 @@ def get_harris_corners(image, sigma, threshold):
 	start = time.time()
 	corners = []
 	(h, w) = image.shape
-	drow_img, dcol_img = apply_haar_filter(image, 1.2)
-	corner_img = np.zeros((h,w))
 	# 5*sigma by 5*sigma neighboring window
 	# Size should be always odd
 	s = int(5*sigma) + (1 - int(5*sigma)%2)
 	hs = s/2
+	# Blur the image to remove noise
+	image = cv2.GaussianBlur(image, (s,s), 0)
+	drow_img, dcol_img = apply_haar_filter(image, 1.2)
+	corner_img = np.zeros((h,w))
 	print 'Starting corner detection...'
 	# Row means y, col means x
 	for r in xrange(hs, h-hs):
@@ -105,9 +107,6 @@ def get_harris_corners(image, sigma, threshold):
 			M = get_covar_matrix(drow_img[r-hs:r+hs,c-hs:c+hs],
 								 dcol_img[r-hs:r+hs,c-hs:c+hs])
 			R = get_corner_response(M)
-			# if R > 10:
-			# 	print M
-			# 	print R
 			corner_img[r,c] = R
 			if R > threshold:
 				corners.append((r,c))
@@ -120,11 +119,11 @@ def get_harris_corners(image, sigma, threshold):
 	return corners
 
 def main():
-	ori = cv2.imread('images/pair2/1.jpg')
+	ori = cv2.imread('images/pair3/1.jpg')
 	ori = resize_image_by_ratio(ori, 0.5)
 	image = cv2.cvtColor(ori, cv2.COLOR_RGB2GRAY)
 	image = np.double(image) / 255.
-	corners = get_harris_corners(image, 1.2, 1000)
+	corners = get_harris_corners(image, 1.2, 200)
 	fig, ax = plt.subplots(1)
 	ax.set_aspect('equal')
 	ax.imshow(ori, cmap='gray')
