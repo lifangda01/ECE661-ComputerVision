@@ -74,7 +74,7 @@ def apply_nms(image, corners, win_size):
 		@return: list of suppressed corners
 	'''
 	(h, w) = image.shape
-	hs = win_size/2
+	hs = int(win_size/2)
 	sup_corners = []
 	for (r,c) in corners:
 		if image[(r,c)] == np.max( image[r-hs:r+hs,c-hs:c+hs] ):
@@ -121,7 +121,7 @@ def get_harris_corners(image, sigma, threshold):
 def main():
 	ori = cv2.imread('images/pair3/1.jpg')
 	ori = resize_image_by_ratio(ori, 0.5)
-	image = cv2.cvtColor(ori, cv2.COLOR_RGB2GRAY)
+	image = cv2.cvtColor(ori, cv2.COLOR_BGR2GRAY)
 	image = np.double(image) / 255.
 	corners = get_harris_corners(image, 1.2, 200)
 	fig, ax = plt.subplots(1)
