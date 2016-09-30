@@ -63,7 +63,7 @@ def get_corner_response(covar, k=0.04):
 	lambda1, lambda2 = eigens[0], eigens[1]
 	det = lambda1 * lambda2
 	tr = lambda1 + lambda2
-	return det - k*tr
+	return det - k*tr*tr
 
 def apply_nms(image, corners, win_size):
 	'''
@@ -123,17 +123,17 @@ def main():
 	ori = resize_image_by_ratio(ori, 0.5)
 	image = cv2.cvtColor(ori, cv2.COLOR_BGR2GRAY)
 	image = np.double(image) / 255.
-	corners = get_harris_corners(image, 1.2, 200)
+	corners = get_harris_corners(image, 1.2, 300)
 	fig, ax = plt.subplots(1)
 	ax.set_aspect('equal')
-	ax.imshow(ori, cmap='gray')
+	ax.imshow(cv2.cvtColor(ori, cv2.COLOR_BGR2RGB), cmap='jet')
 	for (y,x) in corners:
 		ax.add_patch( Circle((x,y), 5, fill=False, color=np.random.rand(3,1), clip_on=False) )
 	plt.show()
 	# drow_img, dcol_img = apply_haar_filter(image, 1.2)
-	# plt.subplot(1,3,1), plt.imshow(image, cmap='gray')
+	# plt.subplot(1,3,1), plt.imshow(cv2.cvtColor(ori, cv2.COLOR_BGR2RGB), cmap='jet')
 	# plt.subplot(1,3,2), plt.imshow(drow_img, cmap='gray')
-	# plt.subplot(1,3,3), plt.imshow(dcol_img, cmap='gray')
+	# plt.subplot(1,3,3), plt.imsho1w(dcol_img, cmap='gray')
 	# plt.show()
 
 if __name__ == '__main__':

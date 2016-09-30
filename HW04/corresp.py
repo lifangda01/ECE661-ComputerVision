@@ -51,10 +51,16 @@ def get_matching_SSD(image1, points1, image2, points2, win_size):
 	l1 = points1
 	l2 = []
 	hs = int(win_size/2)
+	minSSDs = []
 	for pt1 in points1:
 		p1 = get_patch(image1, pt1, win_size)
 		SSDs = [SSD( p1 , get_patch(image1, pt2, win_size) ) for pt2 in points2]
-		l2.append( points2[np.argmin(SSDs)])
+		minSSD = np.argmin(SSDs)
+		minSSDs.append( SSDs[minSSD] )
+		l2.append( points2[minSSD] )
+	# Threshold based on minimum SSD
+	absmin = np.min(minSSDs)
+
 	return l1, l2
 
 def get_matching_NCC(image1, points1, image2, points2, win_size):
