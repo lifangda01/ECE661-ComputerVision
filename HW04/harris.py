@@ -20,9 +20,17 @@ def apply_filter(image, kernel):
 	'''
 	return cv2.filter2D(image, -1, kernel)
 
+def get_integral_image(image):
+	'''
+		Compute the integral image of the input image.
+		@image: np.ndarray of input image
+		@return: np.ndarray of integral image
+	'''
+	return cv2.integral(image)
+
 def apply_haar_filter(image, sigma):
 	'''
-		Construct two Haar filter based on sigma,
+		Construct two Haar filter based on sigma using convolution,
 		one along x direction, another along y direction.
 		Then, apply the Haar filters on input image.
 		@image: np.ndarray of input image
@@ -37,16 +45,26 @@ def apply_haar_filter(image, sigma):
 	kernel_col[:,:s/2] = -kernel_col[:,:s/2]
 	return apply_filter(image, kernel_row), apply_filter(image, kernel_col)
 
-def get_covar_matrix(drow, dcol):
+def apply_haar_filter_integral(int_img, sigma):
+	'''
+		Construct two Haar filter based on sigma using integral image,
+		one along x direction, another along y direction.
+		Then, apply the Haar filters on input image.
+		@image: np.ndarray of input image
+		@sigma: sigma of kernel
+		@return: two np.ndarray images of gradients along row and column directions
+	'''
+	# Smallest even integer that is greater than 4*sigma
+	s = int(4*sigma) + int(4*sigma)%2
+
+	return apply_filter(image, kernel_row), apply_filter(image, kernel_col)
+
+def get_covar_matrix(drow2, dcol2, drowcol):
 	'''
 		Compute covariance matrix of an image patch.
-		@drow, dcol: np.ndarray of gradients in the patch
+		@drow2, dcol2, drowcol: np.ndarray of precomputed images
 		@return: the covariance matrix M
 	'''
-	# Point-wise multiplications
-	drow2 = np.multiply(drow, drow)
-	dcol2 = np.multiply(dcol, dcol)
-	drowcol = np.multiply(drow, dcol)
 	return np.array([
 		[np.sum( np.sum(dcol2) ), np.sum( np.sum(drowcol) ) ],
 		[np.sum( np.sum(drowcol) ), np.sum( np.sum(drow2) ) ]
@@ -99,13 +117,18 @@ def get_harris_corners(image, sigma, threshold):
 	# Blur the image to remove noise
 	image = cv2.GaussianBlur(image, (s,s), 0)
 	drow_img, dcol_img = apply_haar_filter(image, 1.2)
+	# Preprocess the necessary images forms for computing covariance matrix
+	drow2_img = np.multiply(drow_img, drow_img)
+	dcol2_img = np.multiply(dcol_img, dcol_img)
+	drowcol_img = np.multiply(drow_img, dcol_img)
 	corner_img = np.zeros((h,w))
 	print 'Starting corner detection...'
 	# Row means y, col means x
 	for r in xrange(hs, h-hs):
 		for c in xrange(hs, w-hs):
-			M = get_covar_matrix(drow_img[r-hs:r+hs,c-hs:c+hs],
-								 dcol_img[r-hs:r+hs,c-hs:c+hs])
+			M = get_covar_matrix(drow2_img[r-hs:r+hs,c-hs:c+hs],
+								 dcol2_img[r-hs:r+hs,c-hs:c+hs],
+								 drowcol_img[r-hs:r+hs,c-hs:c+hs])
 			R = get_corner_response(M)
 			corner_img[r,c] = R
 			if R > threshold:
@@ -120,10 +143,10 @@ def get_harris_corners(image, sigma, threshold):
 
 def main():
 	ori = cv2.imread('images/pair3/1.jpg')
-	ori = resize_image_by_ratio(ori, 0.5)
+	ori = resize_image_by_ratio(ori, 1.0)
 	image = cv2.cvtColor(ori, cv2.COLOR_BGR2GRAY)
 	image = np.double(image) / 255.
-	corners = get_harris_corners(image, 1.2, 300)
+	corners = get_harris_corners(image, 1.2, 100)
 	fig, ax = plt.subplots(1)
 	ax.set_aspect('equal')
 	ax.imshow(cv2.cvtColor(ori, cv2.COLOR_BGR2RGB), cmap='jet')
