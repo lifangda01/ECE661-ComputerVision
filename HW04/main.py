@@ -1,5 +1,6 @@
 from harris import get_harris_corners
-from corresp import get_matching_SSD, get_matching_NCC
+from metric import get_matching_SSD, get_matching_NCC
+from sift import get_sift_kp_des
 import numpy as np
 import cv2
 from matplotlib import pyplot as plt
@@ -25,12 +26,13 @@ def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshol
 	color1 = cv2.imread(fpath1)
 	color1 = resize_image_by_ratio(color1, resize_ratio)
 	gray1 = cv2.cvtColor(color1, cv2.COLOR_BGR2GRAY)
-	gray1 = np.double(gray1) / 255.
 	color2 = cv2.imread(fpath2)
 	color2 = resize_image_by_ratio(color2, resize_ratio)
 	gray2 = cv2.cvtColor(color2, cv2.COLOR_BGR2GRAY)
-	gray2 = np.double(gray2) / 255.
 	if feature == 'Harris':
+		# We need double precision
+		gray1 = np.double(gray1) / 255.
+		gray2 = np.double(gray2) / 255.
 		# Find corners in the first image
 		features1 = get_harris_corners(gray1, sigma, threshold)
 		# Find corners in the second image
@@ -65,10 +67,9 @@ def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshol
 			axes[1].add_patch(line2)
 		plt.show()
 	elif feature == 'SIFT':
-		sift = cv2.SIFT()
 		# Find the keypoints and descriptor in one go
-		kp1, des1 = sift.detectAndCompute(gray1,None)
-		kp2, des2 = sift.detectAndCompute(gray2,None)
+		kp1, des1 = get_sift_kp_des(gray1)
+		kp2, des2 = get_sift_kp_des(gray2)
 		# Find the matchings
 		bf = cv2.BFMatcher()
 		matches = bf.knnMatch(des1,des2, k=2)
@@ -77,35 +78,21 @@ def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshol
    		for m,n in matches:
    		    if m.distance < 0.75*n.distance:
    		        good.append([m])
+   		# Weird fix for cv2.drawMatchesKnn error
+   		img3 = np.zeros((1,1))
    		# cv2.drawMatchesKnn expects list of lists as matches.
-   		img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,flags=2)
+   		img3 = cv2.drawMatchesKnn(cv2.cvtColor(color1, cv2.COLOR_BGR2RGB),kp1,
+   								cv2.cvtColor(color2, cv2.COLOR_BGR2RGB),kp2,
+   								good,img3,flags=2)
    		plt.imshow(img3),plt.show()
    		return
-	elif feature == 'SURF':
-		surf = cv2.SURF(400)
-		# Find the keypoints and descriptor in one go
-		kp1, des1 = surf.detectAndCompute(gray1,None)
-		kp2, des2 = surf.detectAndCompute(gray2,None)
-		# Find the matchings
-		bf = cv2.BFMatcher()
-		matches = bf.knnMatch(des1,des2, k=2)
-		 # Apply ratio test
-   		good = []
-   		for m,n in matches:
-   		    if m.distance < 0.75*n.distance:
-   		        good.append([m])
-   		# cv2.drawMatchesKnn expects list of lists as matches.
-   		img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,flags=2)
-   		plt.imshow(img3),plt.show()
-   		return
-
 
 def main():
 	# find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'SSD',
 	# 				1.0, 1.2, 100, 20)
 	# find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'NCC',
 	# 				1.0, 1.2, 100, 20)
-	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'SURF', None,
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'SIFT', None,
 				1.0, None, None, None)	
 if __name__ == '__main__':
 	main()
