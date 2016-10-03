@@ -12,7 +12,7 @@ def resize_image_by_ratio(image, ratio):
 	'''
 	return cv2.resize(image, (int(image.shape[1]*ratio),int(image.shape[0]*ratio)))
 
-def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshold, match_win_size):
+def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshold, match_win_size, fig_name):
 	'''
 		Generic wrapper function for finding matches between interest points in two images.
 		@fpath1,fpath2: string of path to the two RGB image files
@@ -65,6 +65,8 @@ def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshol
 			line2 = ConnectionPatch(xyA=pt2, xyB=pt1, coordsA='data', coordsB='data', axesA=axes[1], axesB=axes[0], color=color)
 			axes[0].add_patch(line1)
 			axes[1].add_patch(line2)
+		# plt.savefig(fig_name, dpi=100)
+		plt.suptitle(fig_name)
 		plt.show()
 	elif feature == 'SIFT':
 		# Find the keypoints and descriptor in one go
@@ -87,12 +89,117 @@ def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshol
    		plt.imshow(img3),plt.show()
    		return
 
-def main():
-	# find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'SSD',
-	# 				1.0, 1.2, 100, 20)
-	# find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'NCC',
-	# 				1.0, 1.2, 100, 20)
+def pair1():
+	# Scale 1
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'SSD',
+					0.5, 1.2, 10, 20, 'images/pair1/scale1_SSD.png')
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'NCC',
+					0.5, 1.2, 10, 20, 'images/pair1/scale1_NCC.png')
+
+	# Scale 2
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'SSD',
+					0.5, 2.4, 40, 20, 'images/pair1/scale2_SSD.png')
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'NCC',
+					0.5, 2.4, 40, 20, 'images/pair1/scale2_NCC.png')	
+
+	# Scale 3
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'SSD',
+					0.5, 3.6, 90, 20, 'images/pair1/scale3_SSD.png')
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'NCC',
+					0.5, 3.6, 90, 20, 'images/pair1/scale3_NCC.png')
+
+	# Scale 4
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'SSD',
+					0.5, 4.8, 160, 20, 'images/pair1/scale4_SSD.png')
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'Harris', 'NCC',
+					0.5, 4.8, 160, 20, 'images/pair1/scale4_NCC.png')
+
+	find_matching('images/pair1/1.jpg', 'images/pair1/2.jpg', 'SIFT', None,
+				1.0, None, None, None, 'images/pair1/SIFT.png')	
+
+def pair2():
+	# Scale 1
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'SSD',
+					1.0, 1.2, 100, 20, 'images/pair2/scale1_SSD.png')
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'NCC',
+					1.0, 1.2, 100, 20, 'images/pair2/scale1_NCC.png')
+
+	# Scale 2
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'SSD',
+					1.0, 2.4, 400, 20, 'images/pair2/scale2_SSD.png')
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'NCC',
+					1.0, 2.4, 400, 20, 'images/pair2/scale2_NCC.png')	
+
+	# Scale 3
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'SSD',
+					1.0, 3.6, 900, 20, 'images/pair2/scale3_SSD.png')
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'NCC',
+					1.0, 3.6, 900, 20, 'images/pair2/scale3_NCC.png')
+
+	# Scale 4
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'SSD',
+					1.0, 4.8, 1600, 20, 'images/pair2/scale4_SSD.png')
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'Harris', 'NCC',
+					1.0, 4.8, 1600, 20, 'images/pair2/scale4_NCC.png')
+
+	find_matching('images/pair2/1.jpg', 'images/pair2/2.jpg', 'SIFT', None,
+				1.0, None, None, None, 'images/pair2/SIFT.png')	
+
+def pair3():
+	# Scale 1
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'SSD',
+					1.0, 1.2, 100, 20, 'images/pair1/scale1_SSD.png')
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'NCC',
+					1.0, 1.2, 100, 20, 'images/pair1/scale1_NCC.png')
+
+	# Scale 2
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'SSD',
+					1.0, 2.4, 400, 20, 'images/pair3/scale2_SSD.png')
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'NCC',
+					1.0, 2.4, 400, 20, 'images/pair3/scale2_NCC.png')	
+
+	# Scale 3
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'SSD',
+					1.0, 3.6, 900, 20, 'images/pair3/scale3_SSD.png')
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'NCC',
+					1.0, 3.6, 900, 20, 'images/pair3/scale3_NCC.png')
+
+	# Scale 4
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'SSD',
+					1.0, 4.8, 1600, 20, 'images/pair3/scale4_SSD.png')
+	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'Harris', 'NCC',
+					1.0, 4.8, 1600, 20, 'images/pair3/scale4_NCC.png')
+
 	find_matching('images/pair3/1.jpg', 'images/pair3/2.jpg', 'SIFT', None,
-				1.0, None, None, None)	
+				1.0, None, None, None, 'images/pair3/SIFT.png')	
+
+def custom():
+	# Scale 1
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
+					0.3, 1.2, 500, 20, 'images/custom/scale1_SSD.png')
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
+					0.3, 1.2, 500, 20, 'images/custom/scale1_NCC.png')
+
+	# Scale 2
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
+					0.5, 2.4, 40, 20, 'images/custom/scale2_SSD.png')
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
+					0.5, 2.4, 40, 20, 'images/custom/scale2_NCC.png')	
+
+	# Scale 3
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
+					0.5, 3.6, 90, 20, 'images/custom/scale3_SSD.png')
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
+					0.5, 3.6, 90, 20, 'images/custom/scale3_NCC.png')
+
+	# Scale 4
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
+					0.5, 4.8, 160, 20, 'images/custom/scale4_SSD.png')
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
+					0.5, 4.8, 160, 20, 'images/custom/scale4_NCC.png')
+
+	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'SIFT', None,
+				1.0, None, None, None, 'images/custom/SIFT.png')	
+
 if __name__ == '__main__':
-	main()
+	custom()
