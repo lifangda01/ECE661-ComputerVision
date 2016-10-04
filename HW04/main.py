@@ -176,27 +176,27 @@ def pair3():
 def custom():
 	# Scale 1
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
-					0.3, 1.2, 500, 20, 'images/custom/scale1_SSD.png')
+					0.2, 1.2, 200, 20, 'images/custom/scale1_SSD.png')
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
-					0.3, 1.2, 500, 20, 'images/custom/scale1_NCC.png')
+					0.2, 1.2, 200, 20, 'images/custom/scale1_NCC.png')
 
 	# Scale 2
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
-					0.5, 2.4, 40, 20, 'images/custom/scale2_SSD.png')
+					0.2, 2.4, 400, 20, 'images/custom/scale2_SSD.png')
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
-					0.5, 2.4, 40, 20, 'images/custom/scale2_NCC.png')	
+					0.2, 2.4, 400, 20, 'images/custom/scale2_NCC.png')	
 
 	# Scale 3
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
-					0.5, 3.6, 90, 20, 'images/custom/scale3_SSD.png')
+					0.2, 3.6, 800, 20, 'images/custom/scale3_SSD.png')
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
-					0.5, 3.6, 90, 20, 'images/custom/scale3_NCC.png')
+					0.2, 3.6, 800, 20, 'images/custom/scale3_NCC.png')
 
 	# Scale 4
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'SSD',
-					0.5, 4.8, 160, 20, 'images/custom/scale4_SSD.png')
+					0.2, 4.8, 1600, 20, 'images/custom/scale4_SSD.png')
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'Harris', 'NCC',
-					0.5, 4.8, 160, 20, 'images/custom/scale4_NCC.png')
+					0.2, 4.8, 1600, 20, 'images/custom/scale4_NCC.png')
 
 	find_matching('images/custom/1.jpg', 'images/custom/2.jpg', 'SIFT', None,
 				1.0, None, None, None, 'images/custom/SIFT.png')	

@@ -70,7 +70,7 @@ def get_matching_SSD(image1, points1, image2, points2, win_size):
 		minVal.append( SSDs[idx] )
 	# Threshold based on minimum SSD
 	absmin = np.min(minVal)
-	threshold = absmin * 10.
+	threshold = absmin * 5.
 	l1 = []
 	l2 = []
 	for i in range(0, len(points1)):
