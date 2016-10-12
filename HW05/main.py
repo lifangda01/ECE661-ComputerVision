@@ -12,6 +12,27 @@ def resize_image_by_ratio(image, ratio):
 	'''
 	return cv2.resize(image, (int(image.shape[1]*ratio),int(image.shape[0]*ratio)))
 
+def get_bounding_box_after_transformation(image, H):
+	'''
+		Given an image and the transformation matrix to be applied, 
+		calculate the bounding box of the image after transformation.
+		@image: image to transform
+		@H: transformation matrix to be applied
+		@return: (num_row, num_col, off_row, off_col)
+	'''
+	(h, w, c) = image.shape
+	corners_1 = [(0,0), (0,w), (h,0), (h,w)]
+	corners_2_row = []
+	corners_2_col = []
+	for corner in corners_1:
+		(r,c) = corner
+		p_1 = np.array([[r,c,1]])
+		(r_2, c_2, z_2) = H * p_1.T
+		corners_2_row.append( int(r_2 / z_2) )
+		corners_2_col.append( int(c_2 / z_2) )
+	return (max(corners_2_row)-min(corners_2_row)+1, max(corners_2_col)-min(corners_2_col)+1,
+			min(corners_2_row), min(corners_2_col))
+
 def get_sift_kp_des(image, nfeatures=0):
 	'''
 		Extract SIFT key points and descriptors from image.
@@ -51,24 +72,26 @@ def test_ransac():
 	kp2, des2 = get_sift_kp_des(gray2, nfeatures=1000)
 	pts1, pts2 = get_matchings(kp1, des1, kp2, des2)
 	in1, in2 = apply_ransac_on_matchings(pts1, pts2, 0.9, 20)
-	print get_llsm_homograhpy_from_points(in1, in2)
+	H = get_llsm_homograhpy_from_points(in1, in2)
+	warped1 = cv2.warpPerspective(color1, H, (2000, 2000))
+	plt.imshow(cv2.cvtColor(warped1, cv2.COLOR_BGR2RGB)), plt.show()
 	# Plot image and mark the corners
-	fig, axes = plt.subplots(1,2)
-	axes[0].set_aspect('equal')
-	axes[0].imshow(cv2.cvtColor(color1, cv2.COLOR_BGR2RGB), cmap='jet')
-	axes[1].set_aspect('equal')
-	axes[1].imshow(cv2.cvtColor(color2, cv2.COLOR_BGR2RGB), cmap='jet')
-	for i in range(len(pts1)):
-		color = np.random.rand(3,1)
-		pt1 = pts1[i]
-		pt2 = pts2[i]
-		axes[0].add_patch( Circle(pt1, 5, fill=False, color=color, clip_on=False) )
-		axes[1].add_patch( Circle(pt2, 5, fill=False, color=color, clip_on=False) )
-		# Draw lines for matching pairs
-		line1 = ConnectionPatch(xyA=pt1, xyB=pt2, coordsA='data', coordsB='data', axesA=axes[0], axesB=axes[1], color=color)
-		line2 = ConnectionPatch(xyA=pt2, xyB=pt1, coordsA='data', coordsB='data', axesA=axes[1], axesB=axes[0], color=color)
-		axes[0].add_patch(line1)
-		axes[1].add_patch(line2)
+	# fig, axes = plt.subplots(1,2)
+	# axes[0].set_aspect('equal')
+	# axes[0].imshow(cv2.cvtColor(color1, cv2.COLOR_BGR2RGB), cmap='jet')
+	# axes[1].set_aspect('equal')
+	# axes[1].imshow(cv2.cvtColor(color2, cv2.COLOR_BGR2RGB), cmap='jet')
+	# for i in range(len(pts1)):
+	# 	color = np.random.rand(3,1)
+	# 	pt1 = pts1[i]
+	# 	pt2 = pts2[i]
+	# 	axes[0].add_patch( Circle(pt1, 5, fill=False, color=color, clip_on=False) )
+	# 	axes[1].add_patch( Circle(pt2, 5, fill=False, color=color, clip_on=False) )
+	# 	# Draw lines for matching pairs
+	# 	line1 = ConnectionPatch(xyA=pt1, xyB=pt2, coordsA='data', coordsB='data', axesA=axes[0], axesB=axes[1], color=color)
+	# 	line2 = ConnectionPatch(xyA=pt2, xyB=pt1, coordsA='data', coordsB='data', axesA=axes[1], axesB=axes[0], color=color)
+	# 	axes[0].add_patch(line1)
+	# 	axes[1].add_patch(line2)
 	plt.show()
 
 def show_sift():
