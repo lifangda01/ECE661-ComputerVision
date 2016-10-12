@@ -19,7 +19,7 @@ def get_M(epsilon, n_total):
 		@n_total: int of total number of samples
 		@return: int of minimum number of inliers
 	'''
-	return (1 - epsilon) * n_total
+	return int( (1 - epsilon) * n_total )
 
 def get_random_minimal_set(n, pts1, pts2):
 	'''		
@@ -53,13 +53,8 @@ def apply_homography_on_points(points, H):
 		@H: np.ndarray of H
 		@return: list of points after transformation
 	'''
-	l = []
-	for point in points:
-		p = np.array([point[0], point[1], 1.])
-		p = np.asarray(np.dot(H, p)).reshape(-1)
-		p = p / p[-1]
-		l.append( (p[0], p[1]) )
-	return l
+	points = np.array( [np.float32(points)] )
+	return np.squeeze( cv2.perspectiveTransform(points, H) )
 
 def get_inliers(trans1, pts1, pts2, delta):
 	'''
@@ -86,14 +81,14 @@ def apply_ransac_on_matchings(pts1, pts2, epsilon, delta):
 	'''
 	N = get_N(epsilon, 4, 0.99)
 	M = get_M(epsilon, len(pts1))
-	print M, N
+	print "M =", M, "; N =", N
 	for i in range(N):
 		ms1, ms2 = get_random_minimal_set(4, pts1, pts2)
 		H = get_homography(ms1, ms2)
 		trans1 = apply_homography_on_points(pts1, H)
 		num_inliers, in1, in2 = get_inliers(trans1, pts1, pts2, delta)
-		if num_inliers > N:
-			print len(in2)
+		if num_inliers > M:
+			print "Number of inliers =", num_inliers
 			return in1, in2
 	print "ERROR: RANSAC has failed to find a valid minimal set..."
 	return [], []
