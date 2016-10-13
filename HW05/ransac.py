@@ -88,6 +88,7 @@ def apply_ransac_on_matchings(pts1, pts2, epsilon, delta):
 		trans1 = apply_homography_on_points(pts1, H)
 		num_inliers, in1, in2 = get_inliers(trans1, pts1, pts2, delta)
 		if num_inliers > M:
+			print "Iteration", i
 			print "Number of inliers =", num_inliers
 			return in1, in2
 	print "ERROR: RANSAC has failed to find a valid minimal set..."

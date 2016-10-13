@@ -18,20 +18,70 @@ def get_bounding_box_after_transformation(image, H):
 		calculate the bounding box of the image after transformation.
 		@image: image to transform
 		@H: transformation matrix to be applied
-		@return: (num_row, num_col, off_row, off_col)
+		@return: (h, w, oy, ox)
 	'''
-	(h, w, c) = image.shape
-	corners_1 = [(0,0), (0,w), (h,0), (h,w)]
-	corners_2_row = []
-	corners_2_col = []
+	h, w = image.shape[0], image.shape[1]
+	corners_1 = [(0,0), (w,0), (0,h), (w,h)]
+	corners_2_x = []
+	corners_2_y = []
+	H = np.matrix(H)
 	for corner in corners_1:
-		(r,c) = corner
-		p_1 = np.array([[r,c,1]])
-		(r_2, c_2, z_2) = H * p_1.T
-		corners_2_row.append( int(r_2 / z_2) )
-		corners_2_col.append( int(c_2 / z_2) )
-	return (max(corners_2_row)-min(corners_2_row)+1, max(corners_2_col)-min(corners_2_col)+1,
-			min(corners_2_row), min(corners_2_col))
+		(x,y) = corner
+		p_1 = np.array([[x,y,1]])
+		(x_2, y_2, z_2) = H * p_1.T
+		corners_2_x.append( int(x_2 / z_2) )
+		corners_2_y.append( int(y_2 / z_2) )
+	return max(corners_2_y)-min(corners_2_y)+1, max(corners_2_x)-min(corners_2_x)+1, \
+			min(corners_2_y), min(corners_2_x)
+
+def get_pixel_by_nearest_neighbor(image, row_f, col_f):
+	'''
+		Get the pixel value based on float row and column numbers.
+		@image: image to be find pixels in
+		@row_f, col_f: float row and column numbers
+		@return: pixel value from image
+	'''
+	row = int(round(row_f))
+	col = int(round(col_f))
+	return image[row][col]
+
+def apply_transformation_on_image(image, H):
+	'''
+		Given a transformation matrix, apply it to the input image to obtain a transformed image.
+		@image: np.ndarray of input image
+		@H: the tranformation matrix to be applied
+		@return: np.ndarray of the transformed image
+	'''
+	# First determine the size of the transformed image 
+	h, w, oy, ox = get_bounding_box_after_transformation(image, H)
+	print "New image size:", (h, w)
+	print "Offsets:", oy, ox
+	try:
+		trans_img = np.ndarray( (h, w, image.shape[2]) )
+	except IndexError:
+		trans_img = np.ndarray( (h, w, 1) )
+	H = np.matrix(H)
+	H_inv = H.I
+	for y in range(trans_img.shape[0]):
+		for x in range(trans_img.shape[1]):
+			p_2 = np.array([[x+ox,y+oy,1]])
+			(x_1, y_1, z_1) = H_inv * p_2.T
+			x_1 = x_1 / z_1
+			y_1 = y_1 / z_1
+			if 0 <= y_1 < image.shape[0]-1 and 0 <= x_1 < image.shape[1]-1:
+				trans_img[y][x] = get_pixel_by_nearest_neighbor(image, y_1, x_1)
+			else:
+				trans_img[y][x] = tuple(np.zeros(trans_img.shape[2]))		
+	return trans_img
+
+def get_canvas(cen_img, sur_imgs, Hs):
+	(h, w, c) = cen_img.shape
+	minx, miny, maxx, maxy = 0, 0, w, h
+	for i in range(len(sur_imgs)):
+		h, w, oy, ox = get_bounding_box_after_transformation(sur_imgs[i], Hs[i])
+		minx, miny, maxx, maxy = min(minx, ox), min(miny, oy), \
+								max(maxx, ox+w), max(maxy, oy+h)
+	return np.zeros( (maxy-miny, maxx-minx, c) ), minx, miny
 
 def get_sift_kp_des(image, nfeatures=0):
 	'''
@@ -59,22 +109,38 @@ def get_matchings(kp1, des1, kp2, des2):
 	return pts1, pts2	
 
 def test_ransac():
-	fpath1 = 'images/1.jpg'
-	fpath2 = 'images/2.jpg'
+	fpath1 = 'images/6.jpg'
+	fpath2 = 'images/7.jpg'
 	resize_ratio = 0.5
+	nfeatures = 1000
+	epsilon = 0.4
+	delta = 10
 	color1 = cv2.imread(fpath1)
 	color1 = resize_image_by_ratio(color1, resize_ratio)
 	gray1 = cv2.cvtColor(color1, cv2.COLOR_BGR2GRAY)
 	color2 = cv2.imread(fpath2)
 	color2 = resize_image_by_ratio(color2, resize_ratio)
 	gray2 = cv2.cvtColor(color2, cv2.COLOR_BGR2GRAY)
-	kp1, des1 = get_sift_kp_des(gray1, nfeatures=1000)
-	kp2, des2 = get_sift_kp_des(gray2, nfeatures=1000)
+	kp1, des1 = get_sift_kp_des(gray1, nfeatures=nfeatures)
+	kp2, des2 = get_sift_kp_des(gray2, nfeatures=nfeatures)
 	pts1, pts2 = get_matchings(kp1, des1, kp2, des2)
-	in1, in2 = apply_ransac_on_matchings(pts1, pts2, 0.9, 20)
+	in1, in2 = apply_ransac_on_matchings(pts1, pts2, epsilon, delta)
 	H = get_llsm_homograhpy_from_points(in1, in2)
-	warped1 = cv2.warpPerspective(color1, H, (2000, 2000))
-	plt.imshow(cv2.cvtColor(warped1, cv2.COLOR_BGR2RGB)), plt.show()
+	sur_imgs = [color1]
+	Hs = [H]
+	canvas, canvas_ox, canvas_oy = get_canvas(color2, sur_imgs, Hs)
+	print canvas.shape, canvas_ox, canvas_oy
+	warped1 = apply_transformation_on_image(color1, H)
+
+	h,w = color2.shape[0], color2.shape[1]
+	canvas[ 0-canvas_oy : 0-canvas_oy+h , 0-canvas_ox : 0-canvas_ox+w ] = color2
+	h,w,oy,ox = get_bounding_box_after_transformation(color1, H)
+	canvas[ oy-canvas_oy : oy-canvas_oy+h , ox-canvas_ox : ox-canvas_ox+w ] = warped1
+
+	plt.imshow(cv2.cvtColor(canvas.astype(np.uint8), cv2.COLOR_BGR2RGB), cmap='jet'), plt.show()
+	
+	# plt.imshow(cv2.cvtColor(warped1.astype(np.uint8), cv2.COLOR_BGR2RGB), cmap='jet'), plt.show()
+	# plt.imshow(warped1), plt.show()
 	# Plot image and mark the corners
 	# fig, axes = plt.subplots(1,2)
 	# axes[0].set_aspect('equal')
@@ -92,7 +158,7 @@ def test_ransac():
 	# 	line2 = ConnectionPatch(xyA=pt2, xyB=pt1, coordsA='data', coordsB='data', axesA=axes[1], axesB=axes[0], color=color)
 	# 	axes[0].add_patch(line1)
 	# 	axes[1].add_patch(line2)
-	plt.show()
+	# plt.show()
 
 def show_sift():
 	fpath1 = 'images/1.jpg'
