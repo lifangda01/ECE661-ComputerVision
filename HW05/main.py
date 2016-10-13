@@ -75,6 +75,9 @@ def apply_transformation_on_image(image, H):
 	return trans_img
 
 def get_canvas(cen_img, sur_imgs, Hs):
+	'''
+		Allocate storage for the final stitched image.
+	'''
 	(h, w, c) = cen_img.shape
 	minx, miny, maxx, maxy = 0, 0, w, h
 	for i in range(len(sur_imgs)):
@@ -96,7 +99,7 @@ def get_sift_kp_des(image, nfeatures=0):
 
 def get_matchings(kp1, des1, kp2, des2):
 	'''
-		Get matchings using SIFT and return non-openCV points
+		Get matchings using SIFT and return non-openCV points.
 	'''
 	bf = cv2.BFMatcher()
 	matches = bf.match(des1, des2)
@@ -108,12 +111,29 @@ def get_matchings(kp1, des1, kp2, des2):
 		pts2.append(pt2)
 	return pts1, pts2	
 
-def test_ransac():
-	fpath1 = 'images/6.jpg'
-	fpath2 = 'images/7.jpg'
+def paint_image_on_canvas(canvas, ori_img, warped_img, H, canvas_ox, canvas_oy):
+	'''
+		Copy image onto canvas with blending.
+	'''
+	h,w,oy,ox = get_bounding_box_after_transformation(ori_img, H)
+	for r in range(oy-canvas_oy , oy-canvas_oy+h):
+		for c in range(ox-canvas_ox , ox-canvas_ox+w):
+			if np.allclose(canvas[r,c], np.zeros(3)):
+				canvas[r,c] = warped_img[r-(oy-canvas_oy), c-(ox-canvas_ox)]
+			elif np.allclose(warped_img[r-(oy-canvas_oy), c-(ox-canvas_ox)], np.zeros(3)):
+				canvas[r,c] = canvas[r,c]
+			else:
+				canvas[r,c] = (canvas[r,c] + warped_img[r-(oy-canvas_oy), c-(ox-canvas_ox)]) / 2.
+
+def smoky_test():
+	fpath1 = 'images/1.jpg'
+	fpath2 = 'images/2.jpg'
+	fpath3 = 'images/3.jpg'
+	fpath4 = 'images/4.jpg'
+	fpath5 = 'images/5.jpg'
 	resize_ratio = 0.5
-	nfeatures = 1000
-	epsilon = 0.4
+	nfeatures = 200
+	epsilon = 0.9
 	delta = 10
 	color1 = cv2.imread(fpath1)
 	color1 = resize_image_by_ratio(color1, resize_ratio)
@@ -121,36 +141,77 @@ def test_ransac():
 	color2 = cv2.imread(fpath2)
 	color2 = resize_image_by_ratio(color2, resize_ratio)
 	gray2 = cv2.cvtColor(color2, cv2.COLOR_BGR2GRAY)
+	color3 = cv2.imread(fpath3)
+	color3 = resize_image_by_ratio(color3, resize_ratio)
+	gray3 = cv2.cvtColor(color3, cv2.COLOR_BGR2GRAY)
+	color4 = cv2.imread(fpath4)
+	color4 = resize_image_by_ratio(color4, resize_ratio)
+	gray4 = cv2.cvtColor(color4, cv2.COLOR_BGR2GRAY)
+	color5 = cv2.imread(fpath5)
+	color5 = resize_image_by_ratio(color5, resize_ratio)
+	gray5 = cv2.cvtColor(color5, cv2.COLOR_BGR2GRAY)
 	kp1, des1 = get_sift_kp_des(gray1, nfeatures=nfeatures)
 	kp2, des2 = get_sift_kp_des(gray2, nfeatures=nfeatures)
-	pts1, pts2 = get_matchings(kp1, des1, kp2, des2)
-	in1, in2 = apply_ransac_on_matchings(pts1, pts2, epsilon, delta)
-	H = get_llsm_homograhpy_from_points(in1, in2)
-	sur_imgs = [color1]
-	Hs = [H]
-	canvas, canvas_ox, canvas_oy = get_canvas(color2, sur_imgs, Hs)
-	print canvas.shape, canvas_ox, canvas_oy
-	warped1 = apply_transformation_on_image(color1, H)
-
-	h,w = color2.shape[0], color2.shape[1]
-	canvas[ 0-canvas_oy : 0-canvas_oy+h , 0-canvas_ox : 0-canvas_ox+w ] = color2
-	h,w,oy,ox = get_bounding_box_after_transformation(color1, H)
-	canvas[ oy-canvas_oy : oy-canvas_oy+h , ox-canvas_ox : ox-canvas_ox+w ] = warped1
-
+	kp3, des3 = get_sift_kp_des(gray3, nfeatures=nfeatures)
+	kp4, des4 = get_sift_kp_des(gray4, nfeatures=nfeatures)
+	kp5, des5 = get_sift_kp_des(gray5, nfeatures=nfeatures)
+	pts12, pts21 = get_matchings(kp1, des1, kp2, des2)
+	pts23, pts32 = get_matchings(kp2, des2, kp3, des3)
+	pts34, pts43 = get_matchings(kp3, des3, kp4, des4)
+	pts45, pts54 = get_matchings(kp4, des4, kp5, des5)
+	in12, in21 = apply_ransac_on_matchings(pts12, pts21, epsilon, delta)
+	in23, in32 = apply_ransac_on_matchings(pts23, pts32, epsilon, delta)
+	in34, in43 = apply_ransac_on_matchings(pts34, pts43, epsilon, delta)
+	in45, in54 = apply_ransac_on_matchings(pts45, pts54, epsilon, delta)
+	H12 = get_llsm_homograhpy_from_points(in12, in21)
+	H23 = get_llsm_homograhpy_from_points(in23, in32)
+	H43 = get_llsm_homograhpy_from_points(in43, in34)
+	H54 = get_llsm_homograhpy_from_points(in54, in45)
+	H13 = np.dot(H12, H23)
+	H53 = np.dot(H54, H43)
+	cen_img = color3
+	sur_imgs = [color1, color2, color4, color5]
+	Hs = [H13, H23, H43, H53]
+	canvas, canvas_ox, canvas_oy = get_canvas(cen_img, sur_imgs, Hs)
+	print "Canvas:", canvas.shape, canvas_ox, canvas_oy
+	warped13 = apply_transformation_on_image(color1, H13)
+	warped53 = apply_transformation_on_image(color5, H53)
+	warped23 = apply_transformation_on_image(color2, H23)
+	warped43 = apply_transformation_on_image(color4, H43)
+	h,w = color3.shape[0], color3.shape[1]
+	canvas[ 0-canvas_oy : 0-canvas_oy+h , 0-canvas_ox : 0-canvas_ox+w ] = color3
+	h,w,oy,ox = get_bounding_box_after_transformation(color1, H13)
+	paint_image_on_canvas(canvas, color1, warped13, H13, canvas_ox, canvas_oy)
+	h,w,oy,ox = get_bounding_box_after_transformation(color5, H53)
+	paint_image_on_canvas(canvas, color5, warped53, H53, canvas_ox, canvas_oy)
+	h,w,oy,ox = get_bounding_box_after_transformation(color2, H23)
+	paint_image_on_canvas(canvas, color2, warped23, H23, canvas_ox, canvas_oy)
+	h,w,oy,ox = get_bounding_box_after_transformation(color4, H43)
+	paint_image_on_canvas(canvas, color4, warped43, H43, canvas_ox, canvas_oy)
 	plt.imshow(cv2.cvtColor(canvas.astype(np.uint8), cv2.COLOR_BGR2RGB), cmap='jet'), plt.show()
 	
-	# plt.imshow(cv2.cvtColor(warped1.astype(np.uint8), cv2.COLOR_BGR2RGB), cmap='jet'), plt.show()
-	# plt.imshow(warped1), plt.show()
 	# Plot image and mark the corners
 	# fig, axes = plt.subplots(1,2)
 	# axes[0].set_aspect('equal')
-	# axes[0].imshow(cv2.cvtColor(color1, cv2.COLOR_BGR2RGB), cmap='jet')
+	# axes[0].imshow(cv2.cvtColor(color2, cv2.COLOR_BGR2RGB), cmap='jet')
 	# axes[1].set_aspect('equal')
-	# axes[1].imshow(cv2.cvtColor(color2, cv2.COLOR_BGR2RGB), cmap='jet')
-	# for i in range(len(pts1)):
-	# 	color = np.random.rand(3,1)
-	# 	pt1 = pts1[i]
-	# 	pt2 = pts2[i]
+	# axes[1].imshow(cv2.cvtColor(color3, cv2.COLOR_BGR2RGB), cmap='jet')
+	# for i in range(len(pts23)):
+	# 	# color = np.random.rand(3,1)
+	# 	color = (1., 0, 0)
+	# 	pt1 = pts23[i]
+	# 	pt2 = pts32[i]
+	# 	axes[0].add_patch( Circle(pt1, 5, fill=False, color=color, clip_on=False) )
+	# 	axes[1].add_patch( Circle(pt2, 5, fill=False, color=color, clip_on=False) )
+	# 	# Draw lines for matching pairs
+	# 	line1 = ConnectionPatch(xyA=pt1, xyB=pt2, coordsA='data', coordsB='data', axesA=axes[0], axesB=axes[1], color=color)
+	# 	line2 = ConnectionPatch(xyA=pt2, xyB=pt1, coordsA='data', coordsB='data', axesA=axes[1], axesB=axes[0], color=color)
+	# 	axes[0].add_patch(line1)
+	# 	axes[1].add_patch(line2)
+	# for i in range(len(in23)):
+	# 	color = (0, 1., 0)
+	# 	pt1 = in23[i]
+	# 	pt2 = in32[i]
 	# 	axes[0].add_patch( Circle(pt1, 5, fill=False, color=color, clip_on=False) )
 	# 	axes[1].add_patch( Circle(pt2, 5, fill=False, color=color, clip_on=False) )
 	# 	# Draw lines for matching pairs
@@ -160,38 +221,8 @@ def test_ransac():
 	# 	axes[1].add_patch(line2)
 	# plt.show()
 
-def show_sift():
-	fpath1 = 'images/1.jpg'
-	fpath2 = 'images/2.jpg'
-	resize_ratio = 0.5
-	color1 = cv2.imread(fpath1)
-	color1 = resize_image_by_ratio(color1, resize_ratio)
-	gray1 = cv2.cvtColor(color1, cv2.COLOR_BGR2GRAY)
-	color2 = cv2.imread(fpath2)
-	color2 = resize_image_by_ratio(color2, resize_ratio)
-	gray2 = cv2.cvtColor(color2, cv2.COLOR_BGR2GRAY)
-	kp1, des1 = get_sift_kp_des(gray1, nfeatures=1000)
-	kp2, des2 = get_sift_kp_des(gray2, nfeatures=1000)
-	# Find the matchings
-	bf = cv2.BFMatcher()
-	matches = bf.knnMatch(des1, des2, k=2)
-	# Apply ratio test
-	good = []
-	for m,n in matches:
-	    if m.distance < 0.75*n.distance:
-	        good.append([m])
-	# Weird fix for cv2.drawMatchesKnn error
-	img3 = np.zeros((1,1))
-	# cv2.drawMatchesKnn expects list of lists as matches.
-	img3 = cv2.drawMatchesKnn(cv2.cvtColor(color1, cv2.COLOR_BGR2RGB),kp1,
-							cv2.cvtColor(color2, cv2.COLOR_BGR2RGB),kp2,
-							good,img3,flags=2)
-	plt.imshow(img3),plt.show()
-
 def main():
-	test_ransac()
-	# show_sift()
-
+	smoky_test()
 
 if __name__ == '__main__':
 	main()
