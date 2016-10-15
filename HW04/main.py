@@ -74,7 +74,7 @@ def find_matching(fpath1, fpath2, feature, metric, resize_ratio, sigma, threshol
 		kp2, des2 = get_sift_kp_des(gray2)
 		# Find the matchings
 		bf = cv2.BFMatcher()
-		matches = bf.knnMatch(des1,des2, k=2)
+		matches = bf.knnMatch(des1, des2, k=2)
 		 # Apply ratio test
    		good = []
    		for m,n in matches:
@@ -202,4 +202,7 @@ def custom():
 				1.0, None, None, None, 'images/custom/SIFT.png')	
 
 if __name__ == '__main__':
+	pair1()
+	pair2()
+	pair3()
 	custom()
