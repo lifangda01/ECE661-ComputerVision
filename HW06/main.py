@@ -38,24 +38,85 @@ def get_contour(mask):
 	return contour
 
 def main():
-	fpath1 = 'images/lake.jpg'
-	color1 = cv2.imread(fpath1)
+	name = 'leopard'
+	useTexture = True
+	fpath = './images/' + name + '.jpg'
+	if name == 'lake':
+		# Lake
+		nIters = [1,2,2]
+		invMasks = [0,1,1]
+		morphOps = [17,5]
+		color = cv2.imread(fpath)
+		if useTexture: 
+			Ns = [3,5,7]
+			nIters = [1,1,1]
+			invMasks = [1,1,1]
+			morphOps = [17,5]
+			texture = get_texture_image(color, Ns)
+			name = name + '_t'
+	elif name == 'leopard':
+		# Leopard
+		nIters = [1,1,1]
+		invMasks = [0,0,0]
+		morphOps = [1,9]
+		color = cv2.imread(fpath)
+		if useTexture: 
+			Ns = [5,7,9]
+			nIters = [1,1,1]
+			invMasks = [0,0,0]
+			morphOps = [1,9]
+			texture = get_texture_image(color, Ns)
+			name = name + '_t'
+	elif name == 'brain':
+		# Brain
+		nIters = [3,3,3]
+		invMasks = [0,0,0]
+		morphOps = [3,11]
+		color = cv2.imread(fpath)
+		if useTexture: 
+			Ns = [5,7,9]
+			nIters = [1,1,1]
+			invMasks = [0,0,0]
+			morphOps = [1,1]
+			texture = get_texture_image(color, Ns)
+			name = name + '_t'
 
-	# final_mask = otsu_rgb(color1, [1,2,2], [0,1,1])
-	# foreground = cv2.bitwise_and(color1, cv2.cvtColor(final_mask, cv2.COLOR_GRAY2BGR))
-	# plt.imshow(cv2.cvtColor(foreground, cv2.COLOR_BGR2RGB))
-	# plt.figure()
-	# plt.imshow(get_contour(final_mask), cmap='gray')
-	# plt.show()
-
-	color1 = cv2.GaussianBlur(color1, (3,3), 0)
-	texture1 = get_texture_image(color1, [5,7,9])
-	final_mask = otsu_rgb(texture1, [1,1,1], [1,1,1])
-	final_mask = cv2.cvtColor(final_mask, cv2.COLOR_GRAY2BGR)
-	foreground = cv2.bitwise_and(color1, final_mask)
-	plt.figure()
+	if useTexture:
+		image = texture
+	else:
+		image = color
+	channels = cv2.split(image)
+	masks, final_mask = otsu_rgb(image, nIters, invMasks, morphOps)
+	foreground = cv2.bitwise_and(color, cv2.cvtColor(final_mask, cv2.COLOR_GRAY2BGR))
+	contour = get_contour(final_mask)
+	# Save the images
+	cv2.imwrite('./images/' + name + '_foreground.jpg', foreground)
+	cv2.imwrite('./images/' + name + '_finalmask.jpg', final_mask)
+	cv2.imwrite('./images/' + name + '_contour.jpg', contour)
+	for i in range(len(channels)):
+		cv2.imwrite('./images/' + name + '_mask_' + str(i) + '.jpg', masks[i])
+	if useTexture:
+		cv2.imwrite('./images/' + name + '_texture.jpg', texture)
+	# Plots
 	plt.imshow(cv2.cvtColor(foreground, cv2.COLOR_BGR2RGB))
+	fig, axes = plt.subplots(2,3)
+	for i in range(len(channels)):
+		axes[0,i].set_aspect('equal')
+		axes[0,i].imshow(channels[i], cmap='gray')
+		axes[1,i].set_aspect('equal')
+		axes[1,i].imshow(masks[i], cmap='gray')
+	plt.figure()
+	plt.imshow(final_mask, cmap='gray')
+	plt.figure()
+	plt.imshow(contour, cmap='gray')
+	if useTexture:
+		plt.figure()
+		plt.imshow(texture)		
 	plt.show()
 
 if __name__ == '__main__':
 	main()
+
+	# color = cv2.cvtColor(color, cv2.COLOR_BGR2HSV)
+	# masks, final_mask = otsu_rgb(color, [2,1,1], [0,0,0])
+	# cv2.imwrite('./images/' + name + '_foreground.jpg', cv2.cvtColor(foreground, cv2.COLOR_HSV2BGR))

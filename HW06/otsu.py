@@ -25,12 +25,13 @@ def otsu_gray(image, nIter):
 		_,mask = cv2.threshold(image, k_star, 255, cv2.THRESH_BINARY)
 	return mask
 
-def otsu_rgb(image, nIters, invMasks):
+def otsu_rgb(image, nIters, invMasks, morphOps):
 	'''
 		Apply Otsu's algorithm on a RGB image.
 		@image: np.ndarray of input image
 		@nIters: int of number of iterations to apply
 		@invMasks: bool of whether to invert the mask
+		@morphOps: int of morphological operation kernel sizes
 		@return: np.ndarray of segmented foreground
 	'''
 	# BGR channels
@@ -43,19 +44,15 @@ def otsu_rgb(image, nIters, invMasks):
 			mask = cv2.bitwise_not(mask)
 		final_mask = cv2.bitwise_and(final_mask, mask)
 		masks.append(mask)
-	# Morphological operations to fill in holes and get rid of small regions
-	final_mask = cv2.dilate(final_mask, np.ones((5,5)).astype(np.uint8))
-	final_mask = cv2.erode(final_mask, np.ones((10,10)).astype(np.uint8))
-	fig, axes = plt.subplots(2,3)
-	for i in range(len(channels)):
-		axes[0,i].set_aspect('equal')
-		axes[0,i].imshow(channels[i], cmap='gray')
-		axes[1,i].set_aspect('equal')
-		axes[1,i].imshow(masks[i], cmap='gray')
-	fig = plt.figure()
-	plt.imshow(final_mask, cmap='gray')
-	plt.show()
-	return final_mask
+	# Morphological operations to get rid of small regions in background
+	kernel = np.ones((morphOps[0],morphOps[0])).astype(np.uint8)
+	final_mask = cv2.erode(final_mask, kernel)
+	final_mask = cv2.dilate(final_mask, kernel)
+	# Morphological operations to fill in holes in foreground
+	kernel = np.ones((morphOps[1],morphOps[1])).astype(np.uint8)
+	final_mask = cv2.dilate(final_mask, kernel)
+	final_mask = cv2.erode(final_mask, kernel)
+	return masks, final_mask
 
 def main():
 	fpath1 = 'images/lake.jpg'
