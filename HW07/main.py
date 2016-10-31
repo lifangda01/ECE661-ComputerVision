@@ -19,7 +19,7 @@ def read_depth_image(filename):
 def depth_to_pc(dimg):
 	'''
 		Convert depth image into point cloud using the intrinsic camera matrix.
-		@return: 3xN np.ndarray of points in the point cloud
+		@return: Nx3 np.ndarray of points in the point cloud
 	'''
 	h,w = dimg.shape
 	# Intrinsic camera matrix
@@ -33,11 +33,12 @@ def depth_to_pc(dimg):
 		y,x = Y[i],X[i]
 		u = np.array([x, y, 1])
 		pc[i,:] = dimg[y,x] * np.dot(K_inv, u)
-	return pc.transpose()
+	return pc
 
 def read_pc_from_file(filename):
 	'''
 		Read the point cloud from file.
+		Each point is stored as a row vector.
 	'''
 	dimg = read_depth_image(filename)
 	print 'Reading depth image...', dimg.shape
@@ -46,21 +47,34 @@ def read_pc_from_file(filename):
 	return pc
 
 def main():
-	pc1 = read_pc_from_file('images/depthImage1ForHW.txt')
-	pc2 = read_pc_from_file('images/depthImage2ForHW.txt')
+	# Each point is a row vector
+	data = read_pc_from_file('images/depthImage1ForHW.txt')
+	model = read_pc_from_file('images/depthImage2ForHW.txt')
+
+	# Toy PCs for debugging
+	# x = np.linspace(0, 2*np.pi, 100)
+	# y = np.zeros(100)
+	# z1 = np.sin(x)
+	# z2 = np.sin(x) + 0.2
+	# data = np.vstack((x,y,z1)).transpose()
+	# model = np.vstack((x,y,z2)).transpose()
+
 	# Plot the two orginal point clouds
-	# fig = plt.figure()
-	# ax = fig.gca(projection='3d')
-	# ax.scatter(pc1[0,:], pc1[1,:], pc1[2,:], c='b', marker='.', edgecolor='none', depthshade=False)
-	# ax.scatter(pc2[0,:], pc2[1,:], pc2[2,:], c='r', marker='.', edgecolor='none', depthshade=False)
-	# plt.show()
-	icp(pc1, pc2, 20)
+	fig = plt.figure()
+	ax = fig.gca(projection='3d')
+	ax.scatter(data[:,0], data[:,1], data[:,2], c='b', marker='.', edgecolor='none', depthshade=False)
+	ax.scatter(model[:,0], model[:,1], model[:,2], c='r', marker='.', edgecolor='none', depthshade=False)
+	ax.view_init(elev=16, azim=-52)
+	# plt.savefig('./images/before.png')
+	plt.show()
+	aligned = icp(data, model, 20)
+	fig = plt.figure()
+	ax = fig.gca(projection='3d')
+	ax.scatter(aligned[:,0], aligned[:,1], aligned[:,2], c='b', marker='.', edgecolor='none', depthshade=False)
+	ax.scatter(model[:,0], model[:,1], model[:,2], c='r', marker='.', edgecolor='none', depthshade=False)
+	ax.view_init(elev=16, azim=-52)
+	# plt.savefig('./images/after.png')
+	plt.show()
 
 if __name__ == '__main__':
 	main()
-
-	# plt.imshow(dimg1)
-	# plt.savefig('./images/depth1.png')
-	# plt.imshow(dimg2)
-	# plt.savefig('./images/depth2.png')
-	# plt.show()
