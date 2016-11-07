@@ -74,7 +74,7 @@ def test(R, P):
 
 def evaluate(n, weightedNN=True):
 	'''
-		Evaluate our classifier.
+		Evaluate our classifier, calculate accuracy and confusion matrix.
 		@n: int of number of nearest neighbors for majority voting
 	'''
 	trainHists = loadtxt("train_hists.out")
@@ -88,6 +88,7 @@ def evaluate(n, weightedNN=True):
 	# Get classes information
 	tdir = os.path.join(os.getcwd(),'imagesDatabaseHW8','training')
 	classes = os.listdir(tdir)
+	print classes
 	nClasses = len(classes)
 	# Initialize confusion matrix
 	confusion = zeros((nClasses,nClasses)).astype(uint8)
@@ -106,14 +107,14 @@ def evaluate(n, weightedNN=True):
 			# Weighted voting
 			weights = zeros(n)
 			for j in range(n): 
-				weights[j] += 1. / linalg.norm(hist - trainHists[ indices[j], :])
+				weights[j] += 1000. / linalg.norm(hist - trainHists[ indices[j], :])
 			for j in range(n): 
 				preds[ trainLabels[ indices[j] ] ] += weights[j]
 		else:
 			# Majority voting
 			for j in indices: 
 				preds[ trainLabels[j] ] += 1
-		# print preds
+		print preds
 		pred = argmax(preds)
 		confusion[ground_truth, pred] += 1
 		if pred == ground_truth: nCorrect += 1.
@@ -123,12 +124,12 @@ def evaluate(n, weightedNN=True):
 	print confusion
 
 def main():	
-	# R = 1
-	# P = 8
+	R = 4
+	P = 16
 	n = 5
 	# train(R, P)
 	# test(R, P)
-	evaluate(n, weightedNN=True)
+	evaluate(n, weightedNN=False)
 
 if __name__ == '__main__':
 	main()
