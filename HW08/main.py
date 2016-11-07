@@ -124,12 +124,12 @@ def evaluate(n, weightedNN=True):
 	print confusion
 
 def main():	
-	R = 4
-	P = 16
+	R = 1
+	P = 8
 	n = 5
-	# train(R, P)
-	# test(R, P)
-	evaluate(n, weightedNN=False)
+	train(R, P)
+	test(R, P)
+	evaluate(n, weightedNN=True)
 
 if __name__ == '__main__':
 	main()

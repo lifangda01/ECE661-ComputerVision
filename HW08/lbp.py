@@ -5,7 +5,7 @@ import BitVector
 
 def get_lbp_hist(image, R, P):
 	'''
-		Find the LBP histogram of an image.
+		Find the normalized LBP histogram of an image.
 		@image: np.ndarray of gray scale input image
 		@R: int of number of LBP sampling circle radius
 		@P: int of number of samples to take on each circle
@@ -19,13 +19,27 @@ def get_lbp_hist(image, R, P):
 			# Obtain the pixel values on the circle
 			sample_coords = get_sample_coords((r,c), R, P)
 			samples = [image[coord] for coord in sample_coords]
+			# samples = [bilinear_interpolate(image, coord[0], coord[1]) for coord in sample_coords]
 			samples = array(samples)
 			# Obtain the pattern
 			pattern = zeros(P)
 			pattern[ samples >= image[(r,c)] ] = 1
 			# Obtain the encoding and add to histogram
 			hist[ encode(pattern) ] += 1
-	return hist
+	return hist / float(sum(hist))
+
+def bilinear_interpolate(image, y, x):
+	'''
+		Bilinear interpolation.
+	'''
+	fx, fy = int(floor(x)), int(floor(y))
+	cx, cy = int(ceil(x)), int(ceil(y))
+	dx, dy = x-fx, y-fy
+	a1 = array([1-dy, dy])
+	a2 = array([ [image[fy,fx], image[fy,cx]],
+				 [image[cy,fx], image[cy,cx]] ])
+	a3 = array([1-dx, dx]) 
+	return dot(dot(a1,a2), a3.transpose())
 
 def get_sample_coords(curr, R, P):
 	'''
@@ -42,6 +56,7 @@ def get_sample_coords(curr, R, P):
 		dX = np.cos(theta) * R
 		dY = np.sin(theta) * R
 		new_coord = ( int(curr[0]+0.5+dY), int(curr[1]+0.5+dX) )
+		# new_coord = ( curr[0]+0.5+dY, curr[1]+0.5+dX )
 		coords.append(new_coord)
 		theta += dTheta
 	return coords
