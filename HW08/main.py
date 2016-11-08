@@ -88,7 +88,7 @@ def evaluate(n, weightedNN=True):
 	# Get classes information
 	tdir = os.path.join(os.getcwd(),'imagesDatabaseHW8','training')
 	classes = os.listdir(tdir)
-	print classes
+	print "Classes are...", classes
 	nClasses = len(classes)
 	# Initialize confusion matrix
 	confusion = zeros((nClasses,nClasses)).astype(uint8)

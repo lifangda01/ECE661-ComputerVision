@@ -12,7 +12,7 @@ def get_lbp_hist(image, R, P):
 		@return: 1-D array of histogram of the image
 	'''
 	h, w = image.shape[0], image.shape[1]
-	hist = zeros(P+2)
+	H = zeros(P+2)
 	# Iterate through the image
 	for r in range(R, h-R):
 		for c in range(R, w-R):
@@ -25,8 +25,9 @@ def get_lbp_hist(image, R, P):
 			pattern = zeros(P)
 			pattern[ samples >= image[(r,c)] ] = 1
 			# Obtain the encoding and add to histogram
-			hist[ encode(pattern) ] += 1
-	return hist / float(sum(hist))
+			H[ encode(pattern) ] += 1
+			temp.append(encode(pattern))
+	return H / float(sum(H))
 
 def bilinear_interpolate(image, y, x):
 	'''
@@ -86,16 +87,18 @@ def encode(pattern):
 		return P+1
 
 def main():
-	test = np.array([[5, 4, 2, 4, 2, 2, 4, 0],
-			[4, 2, 1, 2, 1, 0, 0, 2],
-			[2, 4, 4, 0, 4, 0, 2, 4],
-			[4, 1, 5, 0, 4, 0, 5, 5],
-			[0, 4, 4, 5, 0, 0, 3, 2],
-			[2, 0, 4, 3, 0, 3, 1, 2],
-			[5, 1, 0, 0, 5, 4, 2, 3],
-			[1, 0, 0, 4, 5, 5, 0, 1]])
-	print test
-	print get_lbp_hist(test, 1, 8)
+	# test = np.array([[5, 4, 2, 4, 2, 2, 4, 0],
+	# 		[4, 2, 1, 2, 1, 0, 0, 2],
+	# 		[2, 4, 4, 0, 4, 0, 2, 4],
+	# 		[4, 1, 5, 0, 4, 0, 5, 5],
+	# 		[0, 4, 4, 5, 0, 0, 3, 2],
+	# 		[2, 0, 4, 3, 0, 3, 1, 2],
+	# 		[5, 1, 0, 0, 5, 4, 2, 3],
+	# 		[1, 0, 0, 4, 5, 5, 0, 1]])
+	fpath = './imagesDatabaseHW8/training/tree/01.jpg'
+	image = imread(fpath)
+	image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+	print get_lbp_hist(image, 1, 8)
 
 if __name__ == '__main__':
 	main()
