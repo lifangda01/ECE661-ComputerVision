@@ -29,14 +29,6 @@ def extract_homo_lines_from_image(image):
 	# show()
 	return [cross( array([x1,y1,1]), array([x2,y2,1]) ) for x1,y1,x2,y2 in lines]
 
-def remove_duplicate_lines(homolines):
-	homolines = homolines / homolines[:,1]
-	unique = [homolines[0]]
-	for curr in homolines[1:]:
-		prev = unique[-1]
-		# if norm(curr-prev)
-
-
 def extract_sorted_corners_from_homo_lines(homolines):
 	'''
 		Given 'vertical' and 'horizontal' lines, return their intersections.
@@ -44,8 +36,11 @@ def extract_sorted_corners_from_homo_lines(homolines):
 	homolines = array(homolines)
 	# We need to divide the input lines into two groups, horizontal and vertical
 	theta = array([arctan(float(-a)/b) for a,b,c in homolines])
-	horilines = homolines[theta < pi/4, :]
-	vertlines = homolines[pi/4 <= theta, :]
+	print theta
+	horilines = homolines[logical_and(theta >= -pi/4, theta < pi/4), :]
+	vertlines = homolines[logical_or(theta < -pi/4, theta >= pi/4), :]
+	print horilines
+	print vertlines
 	# Now we need to sort the lines for future labeling process
 	Yinters = -horilines[:,2] / horilines[:,1]
 	horilines = horilines[ argsort(Yinters), :]
@@ -53,41 +48,30 @@ def extract_sorted_corners_from_homo_lines(homolines):
 	vertlines = vertlines[ argsort(Xinters), :]
 	# Find the intersections in order
 	homocorners = []
-	# numVlines = vertlines.shape[0]
 	for hline in horilines:
 		for vline in vertlines:
 			curr = cross(hline, vline)
 			curr = curr / curr[2]
-			if len(homocorners) > 0:
-				prevleft = homocorners[-1]
-			else:
-				prevleft = array([0,0,1])
-			if len(homocorners) > 8:
-				prevtop = homocorners[-8]
-			else:
-				prevtop = array([0,0,1])
-			# Skip this corner if it's too close to the previous corner
-			# print norm(curr-prev), prev, curr, norm(curr-prev)>10
-			if norm(curr-prevleft) > 10 and norm(curr-prevtop) > 10:
+			# Skip this corner if it's too close to one of the previous corner
+			if min([norm(curr-prev) for prev in homocorners] + [10]) >= 10:
 				homocorners.append(curr)
-	print len(homocorners)
+	return homocorners
 
-	image = imread('./Dataset1/Pic_10.jpg')
+def main():
+	image = imread('./Dataset1/Pic_1.jpg')
+	homolines = extract_homo_lines_from_image(image)
+	print homolines
+	corners = extract_sorted_corners_from_homo_lines(homolines)
+	# print corners
 	height, width = image.shape[0], image.shape[1]
-	for a,b,c in horilines:
+	for a,b,c in homolines:
 		cv2.line(image, (0, -c/b), (width-1,-(c+a*(width-1))/b), color=(0,255,0), thickness=1)
-	for a,b,c in vertlines:
-		cv2.line(image, (0, -c/b), (width-1,-(c+a*(width-1))/b), color=(255,0,0), thickness=1)
-	for i,homocorner in enumerate(homocorners):
-		cv2.circle(image, (homocorner[0], homocorner[1]), 2, color=(0,0,255), thickness=1)
-		cv2.putText(image, str(i), (homocorner[0]-10, homocorner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
+	for i,corner in enumerate(corners):
+		cv2.circle(image, (corner[0], corner[1]), 2, color=(0,0,255), thickness=1)
+		cv2.putText(image, str(i), (corner[0]-10, corner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
 	imshow(image)
 	show()
 
-def main():
-	img = imread('./Dataset1/Pic_10.jpg')
-	homolines = extract_homo_lines_from_image(img)
-	corners = extract_sorted_corners_from_homo_lines(homolines)
 
 if __name__ == '__main__':
 	main()
