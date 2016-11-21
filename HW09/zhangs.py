@@ -9,6 +9,7 @@ def get_vij(H, i, j):
 		Construct one row of V.
 	'''
 	# i=0,1,2; j=0,1,2
+	H = H.T
 	return array([ H[i,0]*H[j,0],
 				H[i,0]*H[j,1] + H[i,1]*H[j,0],
 				H[i,1]*H[j,1],
