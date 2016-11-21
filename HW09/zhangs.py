@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from pylab import *
 import cv2
+import os
 from llsm import get_llsm_homograhpy_from_points
 from corner_detection import extract_sorted_corners
 
@@ -64,24 +65,81 @@ def get_world_frame_corners(d):
 			corners.append(corner)
 	return corners
 
+def get_extrinsic_matrix(K, H):
+	'''
+		Given K and H for a camera pose,
+		return the extrinsic matrix [R|t].
+	'''
+	h1, h2, h3 = H[:,0], H[:,1], H[:,2]
+	Kinv = inv(K)
+	epsilon = 1. / norm(dot(Kinv, h1))
+	r1 = epsilon * dot(Kinv, h1)
+	r2 = epsilon * dot(Kinv, h2)
+	r3 = cross(r1, r2)
+	t = epsilon * dot(Kinv, h3)
+	R = vstack((r1,r2,r3)).T
+	# Condition the rotation matrix to be orthonormal
+	U, _, Vt = svd(R)
+	R = dot(U, Vt)
+	return hstack((R,t.reshape(3,1)))
+
+def reproject_corners(P, wcorners):
+	'''
+		Reproject pattern corners in world frame to image plane.
+	'''
+	# z in corners are zeros, i.e. corners are on z plane
+	Hhat = P[:, [0,1,3]]
+	pcorners = []
+	for wcorner in wcorners:
+		pcorner = dot(Hhat, wcorner)
+		pcorner = pcorner / pcorner[-1]
+		pcorners.append(pcorner)
+	return pcorners
+
 def main():
-	n = 40	# number of images
+	N = 40	# number of images
 	d = 25	# size of square in mm
 	wcorners = get_world_frame_corners(d)
 	Hs = []
+	images = []
 	# Compute all homography matrices 
-	for i in range(1,n+1):
+	for i in range(1,N+1):
 		image = imread('./Dataset1/Pic_{0}.jpg'.format(i))
+		images.append(image)
 		# Extract corners first
 		icorners = extract_sorted_corners(image)
-		print './Dataset1/Pic_{0}.jpg'.format(i), 'Number of corners found', len(icorners)
+		print './Dataset1/Pic_{0}.jpg'.format(i), 'Number of corners found...', len(icorners)
 		# Compute the homography from world to image plane
 		H = get_llsm_homograhpy_from_points(wcorners, icorners)
 		Hs.append(H)
+	# Extract the intrinsic matrix
 	W = get_absolute_conic_image(Hs)
 	K = get_intrinsic_matrix(W)
-	print "W = ", W
-	print "K = ", K
+	print "K =", K
+	# Extract the extrinsic matrix for each image
+	Rts = []
+	for H in Hs:
+		Rt = get_extrinsic_matrix(K, H)
+		Rts.append(Rt)
+
+	# Backproject to validate
+	n = 10
+	Rt = Rts[n]
+	P = dot(K, Rt)
+	print "Rt =", Rt
+	print "P =", P
+	pcorners = reproject_corners(P, wcorners)
+	image = images[n]
+	height, width = image.shape[0], image.shape[1]
+	corners = extract_sorted_corners(image)
+	for i in range(len(corners)):
+		pcorner = pcorners[i].astype(int)
+		corner = corners[i]
+		cv2.circle(image, (corner[0], corner[1]), 2, color=(0,0,255), thickness=1)
+		cv2.circle(image, (pcorner[0], pcorner[1]), 2, color=(255,0,0), thickness=1)
+		cv2.putText(image, str(i), (corner[0]-10, corner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
+	imshow(image)
+	show()
 
 if __name__ == '__main__':
 	main()
