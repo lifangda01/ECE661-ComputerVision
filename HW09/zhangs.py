@@ -84,9 +84,19 @@ def get_extrinsic_matrix(K, H):
 	R = dot(U, Vt)
 	return hstack((R,t.reshape(3,1)))
 
+def compensate_radial_distortion(arrayImage, x0, y0, k1, k2):
+	'''
+		Given points on image planes, compensate the radial distortion.
+	'''
+	r2 = (arrayImage[0,:]-x0)**2 + (arrayImage[1,:]-y0)**2
+	r4 = r2**2
+	arrayImage[0,:] = arrayImage[0,:] + (arrayImage[0,:]-x0) * (k1*r2 + k2*r4)
+	arrayImage[1,:] = arrayImage[1,:] + (arrayImage[1,:]-y0) * (k1*r2 + k2*r4)
+	return arrayImage
+
 def reproject_corners(P, wcorners):
 	'''
-		Reproject pattern corners in world frame to image plane.
+		Re-project pattern corners in world frame to image plane.
 	'''
 	# z in corners are zeros, i.e. corners are on z plane
 	Hhat = P[:, [0,1,3]]
@@ -128,36 +138,65 @@ def unpack_parameters(p):
 		Rts.append(Rt)
 	return K, Rts
 
-def main():
-	N = 40	# number of images
-	d = 25	# size of square in mm
+def get_reprojection_accuracy(arrayImage, arrayReproj):
+	'''
+		Given array of repojected corners and ground truth corners, 
+		return the mean and variance of the Euclidean distance between them.
+	'''
+	dist = norm( arrayImage - arrayReproj, axis=0 )
+	return mean(dist), var(dist)
+
+def calibrate_camera(dataset, N=40, d=25,levmar=True):
 	wcorners = get_world_frame_corners(d)
 	# Convert list to array, each column is a point
 	arrayWorld = zeros((3,80))
 	arrayImage = zeros((3,80*N))
+	arrayReproj = zeros((3,80*N))
 	for i,w in enumerate(wcorners): arrayWorld[:,i] = w
 	Hs = []
 	images = []
-	# Compute all homography matrices 
-	for i in range(1,N+1):
-		image = imread('./Dataset1/Pic_{0}.jpg'.format(i))
-		images.append(image)
-		# Extract corners first
-		icorners = extract_sorted_corners(image)
-		arrayImage[:,(i-1)*80 : i*80] = array(icorners).T
-		print 'Number of corners found...', len(icorners)
-		# Compute the homography from world to image plane
-		H = get_llsm_homograhpy_from_points(wcorners, icorners)
-		Hs.append(H)
+	print "Working on dataset...", dataset
+	# dataset1
+	if dataset == 1:
+		# Compute all homography matrices 
+		for i in range(1,N+1):
+			image = imread('./Dataset1/Pic_{0}.jpg'.format(i))
+			images.append(image)
+			# Extract corners first
+			icorners = extract_sorted_corners(image)
+			arrayImage[:,(i-1)*80 : i*80] = array(icorners).T
+			print 'Number of corners found...', len(icorners)
+			# Compute the homography from world to image plane
+			H = get_llsm_homograhpy_from_points(wcorners, icorners)
+			Hs.append(H)
+	# dataset2
+	elif dataset == 2:
+		# Compute all homography matrices 
+		for i in range(N):
+			image = imread('./Dataset2/{0}.jpg'.format(i))
+			images.append(image)
+			# Extract corners first
+			icorners = extract_sorted_corners(image)
+			arrayImage[:,i*80 : (i+1)*80] = array(icorners).T
+			print 'Number of corners found...', len(icorners)
+			# Compute the homography from world to image plane
+			H = get_llsm_homograhpy_from_points(wcorners, icorners)
+			Hs.append(H)
 	# Extract the intrinsic matrix
 	W = get_absolute_conic_image(Hs)
 	K = get_intrinsic_matrix(W)
-	print "Before LM, K =", K
 	# Extract the extrinsic matrix for each image
 	Rts = []
 	for H in Hs:
 		Rt = get_extrinsic_matrix(K, H)
 		Rts.append(Rt)
+	for i,Rt in enumerate(Rts):
+		P = dot(K, Rt)
+		arrayReproj[:,i*80 : (i+1)*80] = array(reproject_corners(P, wcorners)).T
+	print "==========Before LM=========="
+	print "K =", K
+	print "Euclidean distance: mean, variance =", get_reprojection_accuracy(arrayImage, arrayReproj)
+	if not levmar: return K, Rts
 	# Refine the K,R,t estimates with Levenberg-Marquedt
 	p_guess = pack_parameters(K, Rts)
 	def error_function(p):
@@ -177,27 +216,18 @@ def main():
 	print "Optimizing..."
 	p_refined, _ = leastsq(error_function, p_guess)
 	K_refined, Rts_refined = unpack_parameters(p_refined)
-	print "After LM, K_refined =", K_refined
-	# Backproject to validate
-	n = 0
-	# Rt = Rts[n]
-	# P = dot(K, Rt)
-	Rt = Rts_refined[n]
-	P = dot(K_refined, Rt)
-	print "Rt =", Rt
-	print "P =", P
-	pcorners = reproject_corners(P, wcorners)
-	image = images[n]
-	height, width = image.shape[0], image.shape[1]
-	corners = extract_sorted_corners(image)
-	for i in range(len(corners)):
-		pcorner = pcorners[i].astype(int)
-		corner = corners[i]
-		cv2.circle(image, (corner[0], corner[1]), 2, color=(0,0,255), thickness=1)
-		cv2.circle(image, (pcorner[0], pcorner[1]), 2, color=(255,0,0), thickness=1)
-		cv2.putText(image, str(i), (corner[0]-10, corner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
-	imshow(image)
-	show()
+	for i,Rt_refined in enumerate(Rts_refined):
+		P_refined = dot(K_refined, Rt_refined)
+		arrayReproj[:,i*80 : (i+1)*80] = array(reproject_corners(P_refined, wcorners)).T
+	print "==========After LM=========="
+	print "K_refined =", K_refined
+	print "Euclidean distance: mean, variance =", get_reprojection_accuracy(arrayImage, arrayReproj)
+	return K_refined, Rts_refined
+
+def main():
+	d = 25
+	# Obtain the camera matrix
+	K, Rts = calibrate_camera(d=d, levmar=True)
 
 if __name__ == '__main__':
 	main()

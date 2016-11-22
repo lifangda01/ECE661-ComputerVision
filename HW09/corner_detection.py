@@ -13,20 +13,14 @@ def extract_homo_lines_from_image(image):
 	# Apply Canny edge
 	# minVal and maxVal
 	edges = cv2.Canny(blurred, 100, 200)
+	figure()
+	imshow(edges)
+	imsave("./figures/edges_2.png",edges, cmap='gray')
 	# Probabilistic Hough transform
 	# distance resolution, angle resolution and accumulator threshold
 	lines = cv2.HoughLinesP(edges, 1, pi/180, 25, minLineLength=100, maxLineGap=100)
 	lines = squeeze(lines)
-	print "Number of lines found before refinement...", lines.shape[0]
-	# Draw the lines
-	# for x1,y1,x2,y2 in lines:
-	# 	hline = cross( array([x1,y1,1]), array([x2,y2,1]) )
-	# 	a,b,c = hline
-	# 	cv2.line(image, (0, -c/b), (width-1,-(c+a*(width-1))/b), color=(0,255,0), thickness=2)
-	# imshow(edges, cmap='gray')
-	# figure()
-	# imshow(image)
-	# show()
+	# print "Number of lines found before refinement...", lines.shape[0]
 	return [cross( array([x1,y1,1]), array([x2,y2,1]) ) for x1,y1,x2,y2 in lines]
 
 def extract_sorted_corners_from_homo_lines(homolines):
@@ -50,7 +44,7 @@ def extract_sorted_corners_from_homo_lines(homolines):
 			curr = cross(hline, vline)
 			curr = curr / curr[2]
 			# Skip this corner if it's too close to one of the previous corner
-			if min([norm(curr-prev) for prev in homocorners] + [15]) >= 15:
+			if min([norm(curr-prev) for prev in homocorners] + [30]) >= 30:
 				homocorners.append(curr)
 	return homocorners
 
@@ -59,24 +53,29 @@ def extract_sorted_corners(image):
 	return extract_sorted_corners_from_homo_lines(homolines)
 
 def main():
-	n = 40
-	for i in range(1,n+1):
-		image = imread('./Dataset1/Pic_{0}.jpg'.format(i))
-		homolines = extract_homo_lines_from_image(image)
-		corners = extract_sorted_corners_from_homo_lines(homolines)
-		print './Dataset1/Pic_{0}.jpg'.format(i), 'Number of corners found', len(corners)
+	# n = 40
+	# for i in range(1,n+1):
+	# 	image = imread('./Dataset1/Pic_{0}.jpg'.format(i))
+	# 	homolines = extract_homo_lines_from_image(image)
+	# 	corners = extract_sorted_corners_from_homo_lines(homolines)
+	# 	print './Dataset1/Pic_{0}.jpg'.format(i), 'Number of corners found', len(corners)
 	
-	# image = imread('./Dataset1/Pic_{0}.jpg'.format(18))
-	# height, width = image.shape[0], image.shape[1]
-	# homolines = extract_homo_lines_from_image(image)
-	# corners = extract_sorted_corners_from_homo_lines(homolines)
-	# for a,b,c in homolines:
-	# 	cv2.line(image, (0, -c/b), (width-1,-(c+a*(width-1))/b), color=(0,255,0), thickness=1)
-	# for i,corner in enumerate(corners):
-	# 	cv2.circle(image, (corner[0], corner[1]), 2, color=(0,0,255), thickness=1)
-	# 	cv2.putText(image, str(i), (corner[0]-10, corner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
-	# imshow(image)
-	# show()
+	image = imread('./Dataset2/15.jpg'.format(17))
+	height, width = image.shape[0], image.shape[1]
+	homolines = extract_homo_lines_from_image(image)
+	corners = extract_sorted_corners_from_homo_lines(homolines)
+	for a,b,c in homolines:
+		cv2.line(image, (0, -c/b), (width-1,-(c+a*(width-1))/b), color=(0,255,0), thickness=1)
+	figure()
+	imshow(image)
+	imsave("./figures/hough_2.png",image)
+	for i,corner in enumerate(corners):
+		cv2.circle(image, (corner[0], corner[1]), 4, color=(0,0,255), thickness=2)
+		cv2.putText(image, str(i), (corner[0]-10, corner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
+	figure()
+	imshow(image)
+	imsave("./figures/corner_2.png",image)
+	show()
 
 
 if __name__ == '__main__':

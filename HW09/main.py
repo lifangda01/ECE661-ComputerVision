@@ -1,42 +1,65 @@
-import levmar
-import scipy.optimize
-from numpy.testing import *
-import numpy
+#!/usr/bin/python
+from pylab import *
+import cv2
+import os
+from corner_detection import extract_sorted_corners
+from zhangs import calibrate_camera, reproject_corners, get_world_frame_corners
 
+def test_dataset1():
+	d = 25
+	N = 40
+	dataset = 1
+	# Obtain the camera matrix
+	K, Rts = calibrate_camera(dataset, N=N, d=d, levmar=True)
+	# Backproject to validate
+	n = 30
+	Rt = Rts[n-1]
+	print "Rt =", Rt
+	P = dot(K, Rt)
+	image = imread('./Dataset1/Pic_{0}.jpg'.format(n))
+	height, width = image.shape[0], image.shape[1]
+	wcorners = get_world_frame_corners(d)
+	pcorners = reproject_corners(P, wcorners)
+	corners = extract_sorted_corners(image)
+	for i in range(len(corners)):
+		pcorner = pcorners[i].astype(int)
+		corner = corners[i]
+		cv2.circle(image, (corner[0], corner[1]), 2, color=(0,0,255), thickness=1)
+		cv2.circle(image, (pcorner[0], pcorner[1]), 2, color=(255,0,0), thickness=1)
+		cv2.putText(image, str(i), (corner[0]-10, corner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
+	imshow(image)
+	# imsave("./figures/reproject_3.png",image)
+	show()
 
-## This is y-data:
-y_data = numpy.array([0.2867, 0.1171, -0.0087, 0.1326, 0.2415, 0.2878, 0.3133, 0.3701, 0.3996, 0.3728, 0.3551, 0.3587, 0.1408, 0.0416, 0.0708, 0.1142, 0, 0, 0])
+def test_dataset2():
+	d = 25
+	N = 20
+	dataset = 2
+	# Obtain the camera matrix
+	K, Rts = calibrate_camera(dataset, N=N, d=d, levmar=True)
+	# Backproject to validate
+	n = 15
+	Rt = Rts[n]
+	print "Rt =", Rt
+	P = dot(K, Rt)
+	image = imread('./Dataset2/{0}.jpg'.format(n))
+	height, width = image.shape[0], image.shape[1]
+	wcorners = get_world_frame_corners(d)
+	pcorners = reproject_corners(P, wcorners)
+	corners = extract_sorted_corners(image)
+	for i in range(len(corners)):
+		pcorner = pcorners[i].astype(int)
+		corner = corners[i]
+		cv2.circle(image, (corner[0], corner[1]), 4, color=(0,0,255), thickness=2)
+		cv2.circle(image, (pcorner[0], pcorner[1]), 4, color=(255,0,0), thickness=2)
+		cv2.putText(image, str(i), (corner[0]-10, corner[1]-5), cv2.FONT_HERSHEY_PLAIN, 1, color=(255,255,0), thickness=1)
+	imshow(image)
+	# imsave("./figures/reproject_4.png",image)
+	show()
 
-## This is t-data:
-t = numpy.array([67., 88, 104, 127, 138, 160, 169, 188, 196, 215, 240, 247, 271, 278, 303, 305, 321, 337, 353])
+def main():
+	test_dataset1()
+	test_dataset2()
 
-def fitfunc(p, t):
-    """This is the equation"""
-    return p[0] + (p[1] -p[0]) * ((1/(1+numpy.exp(-p[2]*(t-p[3])))) + (1/(1+numpy.exp(p[4]*(t-p[5])))) -1)
-   
-def errfunc(p, t, y):
-    return fitfunc(p,t) -y
-    
-guess = numpy.array([0, max(y_data), 0.1, 140, -0.1, 270])
-p2, C, info, msg, success = scipy.optimize.leastsq(errfunc, guess, args=(t, y_data), full_output=1)
-
-print p2
-
-print numpy.sum(errfunc(p2, t, y_data)**2)
-print numpy.sum(errfunc(p3, t, y_data)**2)
-# p2, C, info, msg, success = scipy.optimize(
-
-    
-#iters, result = levmar.ddif(func, initial, measurement, 5000,
-#                            data = Ab)
-
-# if result:
-#     ex, ey, ez, et = result
-#     tx, ty, tz, tt = map(float, bits[16:20])
-#     print '%.4f %.4f %.4f (%.4f %.4f %.4f) %d' % \
-#           (ex, ey, ez,  tx, ty, tz, iters)
-
-# ##chk = levmar.dchkjac(func, jacf, (0.5, 0.5, 0.5, 10.0), 4, Ab)
-
-            
-        
+if __name__ == '__main__':
+	main()
