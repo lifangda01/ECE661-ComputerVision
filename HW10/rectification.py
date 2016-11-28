@@ -67,6 +67,20 @@ def get_cross_product_equiv_matrix(w):
 				[z, 0., -x],
 				[-y, x, 0.]])
 
+def triangulate_point(P, Pp, pt1, pt2):
+	'''
+		Given two corresponding points on the two image planes, return its physical coordinate.
+	'''
+	A = zeros((4,4))
+	A[0,:] = pt1[0] * P[2,:] - P[0,:]
+	A[1,:] = pt1[1] * P[2,:] - P[1,:]
+	A[2,:] = pt2[0] * Pp[2,:] - Pp[0,:]
+	A[3,:] = pt2[1] * Pp[2,:] - Pp[1,:]
+	# Solution is the right eigenvector corresponding to the smallest eigenvalue
+	U, s, Vt = svd( dot(A.T, A) )
+	v = Vt[-1,:]
+	return v / v[-1]	
+
 def get_epipoles(F):
 	'''
 		Given fundamental matrix, return the left and right epipole.
@@ -92,7 +106,6 @@ def get_fundamental_matrix(pts1, pts2):
 	'''
 	get_normalization_homography_matrix()
 	f = solve_homo_system_with_llsm(pts1, pts2)
-	append(f, 1.)
 	F = f.reshape(3,3)
 	F = condition_fundamental_matrix(F)
 	return F

@@ -24,6 +24,10 @@ def pick_points(image):
 def main():
 	image1 = imread('./images/1.jpg')
 	image2 = imread('./images/2.jpg')
+	# subplot(1,2,1)
+	# imshow(image1)
+	# subplot(1,2,2)
+	# imshow(image2)
 	# Uncomment if necessary
 	# pick_points(image1)
 	# pick_points(image2)
@@ -43,7 +47,15 @@ def main():
 	print "-------- After Rectification --------"
 	print "e = ", dot(H, e)
 	print "ep = ", dot(Hp, ep)
-	
+
+	rectified1 = cv2.warpPerspective(image1, H, (1000,1000))
+	rectified2 = cv2.warpPerspective(image2, Hp, (1000,1000))
+	figure()
+	subplot(1,2,1)
+	imshow(rectified1)
+	subplot(1,2,2)
+	imshow(rectified2)
+	show()
 
 if __name__ == '__main__':
 	main()
