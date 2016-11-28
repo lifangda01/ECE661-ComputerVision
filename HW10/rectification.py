@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from pylab import *
 import cv2
+from scipy.optimize import leastsq
 
 def apply_transformation_on_points(points, H):
 	'''
@@ -80,6 +81,47 @@ def triangulate_point(P, Pp, pt1, pt2):
 	U, s, Vt = svd( dot(A.T, A) )
 	v = Vt[-1,:]
 	return v / v[-1]	
+
+def get_fundamental_matrix_from_projection(P, Pp):
+	'''
+		Extract F from the secondary canonical camera projection matrix.
+	'''
+	ep = Pp[:,3]
+	s = get_cross_product_equiv_matrix(ep)
+	F = dot( s, dot ( Pp, dot( P.T, inv( dot(P, P.T) ) ) ) )
+	return F / F[-1,-1]
+
+def nonlinear_optimization(pts1, pts2, P, Pp):
+	'''
+		Optimize the secondary camera matrix in canonical configuration.
+	'''
+	nPts = len(pts1)
+	array_meas = hstack((array(pts1).T, array(pts2).T))
+	array_reprj = zeros(array_meas.shape)
+	p_guess = Pp.flatten()
+	def error_function(p):
+		'''
+			Geometric distance as cost function for LevMar.
+		'''
+		Pp = p.reshape(3,4)
+		array_reprj.fill(0.)
+		for i in range(nPts):
+			pt1, pt2 = pts1[i], pts2[i]
+			pt_world = triangulate_point(P, Pp, pt1, pt2)
+			pt1_reprj = dot(P, pt_world)
+			pt1_reprj = pt1_reprj / pt1_reprj[-1]
+			pt2_reprj = dot(Pp, pt_world)
+			pt2_reprj = pt2_reprj / pt2_reprj[-1]
+			array_reprj[:,i] = pt1_reprj[:2]
+			array_reprj[:,i+nPts] = pt2_reprj[:2]
+		error = array_meas - array_reprj
+		return error.flatten()
+	print "Optimizing..."
+	p_refined, _ = leastsq(error_function, p_guess)
+	Pp_refined = p_refined.reshape(3,4)
+	Pp_refined = Pp_refined / Pp_refined[-1,-1]
+	P_refined = P
+	return P_refined, Pp_refined
 
 def get_epipoles(F):
 	'''

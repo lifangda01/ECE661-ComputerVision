@@ -41,10 +41,15 @@ def main():
 	P, Pp = get_canonical_projection_matrices(F, ep)
 	print "P = ", P
 	print "Pp = ", Pp
+	P_refined, Pp_refined = nonlinear_optimization(pts1, pts2, P, Pp)
+	print "P_refined = ", P_refined
+	print "Pp_refined = ", Pp_refined
+	F_refined = get_fundamental_matrix_from_projection(P_refined, Pp_refined)
+	print "F_refined = ", F_refined
+	print "-------- After Rectification --------"
 	H, Hp =	get_rectification_homographies(image1, image2, pts1, pts2, e, ep, P, Pp)
 	print "H = ", H
 	print "Hp = ", Hp
-	print "-------- After Rectification --------"
 	print "e = ", dot(H, e)
 	print "ep = ", dot(Hp, ep)
 
