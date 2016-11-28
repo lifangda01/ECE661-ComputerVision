@@ -80,7 +80,17 @@ def triangulate_point(P, Pp, pt1, pt2):
 	# Solution is the right eigenvector corresponding to the smallest eigenvalue
 	U, s, Vt = svd( dot(A.T, A) )
 	v = Vt[-1,:]
-	return v / v[-1]	
+	return v / v[-1]
+
+def triangulate_points(P, Pp, pts1, pts2):
+	'''
+		Convenience function.
+	'''
+	pts = []
+	for pt1,pt2 in zip(pts1,pts2):
+		pt = triangulate_point(P, Pp, pt1, pt2)
+		pts.append(pt)
+	return pts
 
 def get_fundamental_matrix_from_projection(P, Pp):
 	'''
