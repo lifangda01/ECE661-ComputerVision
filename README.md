@@ -8,3 +8,4 @@
 - [HW07-Iterative Closest Point for Point Cloud Alignment](https://github.com/lifangda01/ECE661-ComputerVision/blob/master/HW07/homework-7.pdf)
 - [HW08-Local Binary Pattern Histogram for Image Classification](https://github.com/lifangda01/ECE661-ComputerVision/blob/master/HW08/homework-8.pdf)
 - [HW09-Camera Calibration Using Zhang's Algorithm](https://github.com/lifangda01/ECE661-ComputerVision/blob/master/HW09/homework-9.pdf)
+- [HW10-Projective Reconstruction of A Scene Using Stereo Images](https://github.com/lifangda01/ECE661-ComputerVision/blob/master/HW10/homework-10.pdf)
