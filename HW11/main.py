@@ -3,6 +3,7 @@ from pylab import *
 import cv2
 import os
 from pca import PCAClassifier
+from lda import LDAClassifier
 
 def load_dataset():
 	'''
@@ -11,6 +12,7 @@ def load_dataset():
 		- each face image is vectorized as a column vector
 		- labels are organized as a column vector
 	'''
+	print "Dataset loading..."
 	# Process training images first
 	train_path = './dataset/train/'
 	train_files = [f for f in os.listdir(train_path) if f.endswith(".png")]
@@ -46,10 +48,20 @@ def load_dataset():
 	return train_data, train_label, test_data, test_label
 
 def main():
+	algorithms = ['LDA']
 	train_data, train_label, test_data, test_label = load_dataset()
-	pca = PCAClassifier(train_data, train_label, 60)
-	pca.train()
-	pca.test(test_data, test_label)
+	# PCA
+	if 'PCA' in algorithms:
+		pca = PCAClassifier(train_data, train_label, 60)
+		pca.train()
+		pca.test(test_data, test_label)
+	# LDA
+	elif 'LDA' in algorithms:
+		lda = LDAClassifier(train_data, train_label, 30)
+		lda.train()
+		lda.test(test_data, test_label)
+	elif 'AdaBoost' in algorithms:
+		pass
 
 if __name__ == '__main__':
 	main()
