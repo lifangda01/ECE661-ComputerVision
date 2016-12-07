@@ -4,20 +4,20 @@ import cv2
 from sklearn.neighbors import NearestNeighbors
 
 class PCAClassifier(object):
-	def __init__(self, train_data, train_label, K):
+	def __init__(self):
 		super(PCAClassifier, self).__init__()
-		self.train_data = train_data
-		self.train_label = train_label
 		self.K = K
 		self.m = None
 		self.WK = None
 		self.NN = None
 
-	def train(self):
+	def train(self, train_data, train_label, K):
 		'''
 			Construct K-D tree based on the projections onto the subspace spanned by the first K eigenvectors of the covariance matrix.
 		'''
 		print "======== PCA Training ========"
+		self.train_data = train_data
+		self.train_label = train_label
 		# Follow the notation of Avi's tutorial
 		X = self.train_data
 		m = mean(X, axis=1)

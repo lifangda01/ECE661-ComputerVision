@@ -4,20 +4,20 @@ import cv2
 from sklearn.neighbors import NearestNeighbors
 
 class LDAClassifier(object):
-	def __init__(self, train_data, train_label, K):
+	def __init__(self):
 		super(LDAClassifier, self).__init__()
-		self.train_data = train_data
-		self.train_label = train_label
-		self.num_classes = unique(train_label).size
 		self.K = K
 		self.W = None
 		self.NN = None
 
-	def train(self):
+	def train(self, train_data, train_label, K):
 		'''
 			Construct K-D tree based on the projections onto the subspace spanned by the C-1 most discriminative vectors.
 		'''
 		print "======== LDA Training ========"
+		self.train_data = train_data
+		self.train_label = train_label
+		self.num_classes = unique(train_label).size
 		# Follow Avi's notation
 		X = self.train_data
 		L = self.train_label
