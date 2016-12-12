@@ -2,8 +2,9 @@
 from pylab import *
 import cv2
 import os
-# from pca import PCAClassifier
-# from lda import LDAClassifier
+from pca import PCAClassifier
+from lda import LDAClassifier
+from adaboost import *
 
 def load_face_dataset():
 	'''
@@ -65,10 +66,12 @@ def load_car_dataset():
 	for i,f in enumerate(train_pos_files):
 		image = imread(os.path.join(train_path, 'positive', f))
 		image = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+		image = get_integral_image(image)
 		train_pos_data[:,i] = image.flatten()
 	for i,f in enumerate(train_neg_files):
 		image = imread(os.path.join(train_path, 'negative', f))
 		image = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+		image = get_integral_image(image)
 		train_neg_data[:,i] = image.flatten()
 	# Process testing images
 	test_path = './car-dataset/test/'
@@ -80,10 +83,12 @@ def load_car_dataset():
 	for i,f in enumerate(test_pos_files):
 		image = imread(os.path.join(test_path, 'positive', f))
 		image = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+		image = get_integral_image(image)
 		test_pos_data[:,i] = image.flatten()
 	for i,f in enumerate(test_neg_files):
 		image = imread(os.path.join(test_path, 'negative', f))
 		image = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+		image = get_integral_image(image)
 		test_neg_data[:,i] = image.flatten()
 	print "Loading finished..."
 	print "Sizes...", train_pos_data.shape, train_neg_data.shape, test_pos_data.shape, test_neg_data.shape
@@ -105,7 +110,8 @@ def main():
 		lda.test(test_data, test_label)
 	elif 'AdaBoost' in algorithms:
 		train_pos_data, train_neg_data, test_pos_data, test_neg_data = load_car_dataset()
-
+		train_pos_featvec = extract_features(train_pos_data)
+		print(train_pos_featvec)
 
 if __name__ == '__main__':
 	main()
