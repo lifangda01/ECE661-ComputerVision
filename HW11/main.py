@@ -57,7 +57,7 @@ def load_car_dataset():
 	'''
 	print "Loading car dataset..."
 	# Process training images first
-	train_path = './car-dataset/train/'
+	train_path = './car-dataset-toy/train/'
 	train_pos_files = [f for f in os.listdir(os.path.join(train_path, 'positive'))]
 	train_neg_files = [f for f in os.listdir(os.path.join(train_path, 'negative'))]
 	num_train = len(train_pos_files + train_neg_files)
@@ -74,7 +74,7 @@ def load_car_dataset():
 		image = get_integral_image(image)
 		train_neg_data[:,i] = image.flatten()
 	# Process testing images
-	test_path = './car-dataset/test/'
+	test_path = './car-dataset-toy/test/'
 	test_pos_files = [f for f in os.listdir(os.path.join(test_path, 'positive'))]
 	test_neg_files = [f for f in os.listdir(os.path.join(test_path, 'negative'))]
 	num_test = len(test_pos_files + test_neg_files)
@@ -97,6 +97,24 @@ def load_car_dataset():
 	print "Loading finished..."
 	print "Sizes...", train_data.shape, train_label.shape, test_data.shape, test_label.shape
 	return train_data, train_label, test_data, test_label
+
+def PCVvsLDA(max_K):
+	train_data, train_label, test_data, test_label = load_face_dataset()
+	pca_accu = zeros(max_K)
+	lda_accu = zeros(max_K)
+	for k in range(max_K):
+		pca = PCAClassifier()
+		pca.train(train_data, train_label, k+1)
+		pca_accu[k] = pca.test(test_data, test_label)
+		lda = LDAClassifier()
+		lda.train(train_data, train_label, k+1)
+		lda_accu[k] = lda.test(test_data, test_label)
+	line1, = plot(linspace(1,max_K,num=max_K), pca_accu, '-ro', label='PCA')
+	line2, = plot(linspace(1,max_K,num=max_K), lda_accu, '-go', label='LDA')
+	legend(handles=[line1, line2], loc=4)
+	xlabel('K')
+	ylabel('Accuracy')
+	show()	
 
 def main():
 	algorithms = ['AdaBoost'] # 'PCA', 'LDA', 'AdaBoost'

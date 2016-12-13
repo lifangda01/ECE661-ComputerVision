@@ -6,7 +6,7 @@ from sklearn.neighbors import NearestNeighbors
 class PCAClassifier(object):
 	def __init__(self):
 		super(PCAClassifier, self).__init__()
-		self.K = K
+		self.K = 0
 		self.m = None
 		self.WK = None
 		self.NN = None
@@ -18,6 +18,7 @@ class PCAClassifier(object):
 		print "======== PCA Training ========"
 		self.train_data = train_data
 		self.train_label = train_label
+		self.K = K
 		# Follow the notation of Avi's tutorial
 		X = self.train_data
 		m = mean(X, axis=1)

@@ -6,7 +6,7 @@ from sklearn.neighbors import NearestNeighbors
 class LDAClassifier(object):
 	def __init__(self):
 		super(LDAClassifier, self).__init__()
-		self.K = K
+		self.K = 0
 		self.W = None
 		self.NN = None
 
@@ -17,6 +17,7 @@ class LDAClassifier(object):
 		print "======== LDA Training ========"
 		self.train_data = train_data
 		self.train_label = train_label
+		self.K = K
 		self.num_classes = unique(train_label).size
 		# Follow Avi's notation
 		X = self.train_data

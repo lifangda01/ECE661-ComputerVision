@@ -4,7 +4,8 @@ import cv2
 
 WIDTH = 40
 HEIGHT = 20
-NUMFEATURES = 88935 # Obtained by _get_feature_matrix()
+NUMFEATURES = 10 # Obtained by _get_feature_matrix()
+# NUMFEATURES = 88935 # Obtained by _get_feature_matrix()
 
 def get_integral_image(image):
 	'''
@@ -60,6 +61,7 @@ def _get_feature_matrix():
 					features[count, (y+bH*i)*HEIGHT+x+bW*j/2] = 2.0
 					features[count, (y+bH*i)*HEIGHT+x+bW*j] = -1.0
 					count = count + 1
+					if count == NUMFEATURES: return features
 	# Vertical features, 2x1 base size
 	bW, bH = 1, 2
 	for i in range(1, HEIGHT, bH): 					# Extend row-wise multiplier
@@ -150,6 +152,7 @@ class CascadedAdaBoostClassifier(object):
 					current_adaboost.decrease_threshold(0.02)
 					Fcurr, Dcurr = self.test()
 
+
 	def _add_adaboost_classifier(self):
 		'''
 			Allocate and return a new AdaBoost classifier.
@@ -166,14 +169,16 @@ class CascadedAdaBoostClassifier(object):
 			Evaluate the cascade on test data and return FPR and detection rate.
 		'''
 		# Evaluate all the test samples in the beginning
-		positive_indices = arange(test_label.size)
+		positive_indices = arange(self.test_label.size)
+		print self.test_label
 		for classifier in self.cascaded_classfiers:
 			positive_indices = classifier.test(positive_indices)
 		# Calculate detection rate by counting the number of ones in the ground-truth of the predicted true samples
-		num_true_positive = sum(test_label[positive_indices])
+		num_true_positive = sum(self.test_label[positive_indices])
 		D = num_true_positive*1.0 / self.test_num_pos
 		# Calculate false positive rate by counting the zeros
 		F = (positive_indices.size - num_true_positive)*1.0 / self.test_num_neg
+		print "F = %.4f, D = %.4f" % (F,D)
 		return F, D
 
 class AdaBoostClassifier(object):
@@ -193,7 +198,8 @@ class AdaBoostClassifier(object):
 		self.test_num_neg = 0
 		self.threshold = 1.0
 		self.weights = None
-		self.weak_classifier_indices = array([])
+		self.weak_classifier_indices = array([], dtype=int)
+		self.weak_classifier_polarities = array([])
 		self.weak_classifier_threshs = array([])
 		self.weak_classifier_weights = array([])
 
@@ -227,19 +233,20 @@ class AdaBoostClassifier(object):
 		else:
 			self.weights = self.weights / sum(self.weights)
 		# Now pick the weak classifier with the min error with respect to the current weights
-		best_feat_index, best_feat_thresh, best_feat_error = self._get_best_weak_classifier()
+		best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error = self._get_best_weak_classifier()
 		# Update our list of weak classifiers
-		append(self.weak_classifier_indices, best_feat_index)
-		append(self.weak_classifier_threshs, best_feat_thresh)
+		self.weak_classifier_indices = append(self.weak_classifier_indices, best_feat_index)
+		self.weak_classifier_polarities = append(self.weak_classifier_polarities, best_feat_polarity)
+		self.weak_classifier_threshs = append(self.weak_classifier_threshs, best_feat_thresh)
 		# Get confidence value of the best new classifier
 		# Following the notation in the paper
 		beta = best_feat_error / (1 - best_feat_error)
 		alpha = log(1 / beta)
-		append(self.weak_classifier_weights, alpha)
+		self.weak_classifier_weights = append(self.weak_classifier_weights, alpha)
 		# Update the weights of the samples
 		classified_labels = zeros(self.train_num_pos + self.train_num_neg)
-		classified_labels[ train_feat_vecs[best_feat_index, :] > best_feat_thresh ] = 1
-		e = abs(classified_labels - train_label)
+		classified_labels[ self.train_feat_vecs[best_feat_index, :] > best_feat_thresh ] = 1
+		e = abs(classified_labels - self.train_label)
 		self.weights = self.weights * beta**(1-e)
 
 	def _get_best_weak_classifier(self):
@@ -248,27 +255,43 @@ class AdaBoostClassifier(object):
 		'''
 		feature_errors = zeros(NUMFEATURES)
 		feature_thresh = zeros(NUMFEATURES)
+		feature_polarity = zeros(NUMFEATURES)
 		Tplus = sum(self.weights[self.train_label==1])
 		Tminus = sum(self.weights[self.train_label==0])
 		# For loop sucks
 		for r in range(NUMFEATURES):
-			# print self.train_sorted_indices
-			# print max(self.train_sorted_indices)
 			sorted_weights = self.weights[self.train_sorted_indices[r,:]]
 			sorted_labels = self.train_label[self.train_sorted_indices[r,:]]
+			# print "===="
+			# print "sorted_weights", sorted_weights
+			# print "sorted_labels", sorted_labels
 			Splus = cumsum(sorted_labels * sorted_weights)
 			Sminus = cumsum((1-sorted_labels) * sorted_weights)
+			# print "Splus", Splus
+			# print "Sminus", Sminus
+			# Error of choice influences the polarity
+			polarities = zeros(self.train_num_pos + self.train_num_neg)
+			polarities[Splus + Tminus - Sminus > Sminus + Tplus - Splus] = 1
+			print polarities
 			errors = minimum(Splus + Tminus - Sminus, Sminus + Tplus - Splus)
-			min_error_sample_index = self.train_sorted_indices[argmin(errors)]
+			# print "errors", errors
+			min_error_sample_index = self.train_sorted_indices[r,argmin(errors)]
+			print "min_error_sample_index", min_error_sample_index
 			min_error = min(errors)
+			# print "min_error", min_error
 			threshold = self.train_feat_vecs[r, min_error_sample_index]
+			polarity = polarities[min_error_sample_index]
+			# print "threshold", threshold
 			feature_errors[r] = min_error
 			feature_thresh[r] = threshold
+			feature_polarity[r] = polarity
 		# Now pick the best one
 		best_feat_index = argmin(feature_errors)
 		best_feat_thresh = feature_thresh[best_feat_index]
 		best_feat_error = feature_errors[best_feat_index]
-		return best_feat_index, best_feat_thresh, best_feat_error
+		best_feat_polarity = feature_polarity[best_feat_index]
+		print best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error
+		return best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error
 
 	def decrease_threshold(self, step):
 		'''
@@ -286,9 +309,12 @@ class AdaBoostClassifier(object):
 		sum_alpha = sum(self.weak_classifier_weights)
 		selected_feat_vecs = self.test_feat_vecs[ :, selected_indices ]
 		# Only preserve the feature vector where the feature is used
+		print self.weak_classifier_indices
 		selected_feat_vecs = selected_feat_vecs[self.weak_classifier_indices, :]
 		h = zeros(selected_feat_vecs.shape)
 		h[ selected_feat_vecs - self.weak_classifier_threshs.reshape(-1,1) > 0 ] = 1.0
 		pred = zeros(selected_indices.size)
-		pred[ dot(self.weak_classifier_weights, h) - sum_weights * self.threshold > 0 ] = 1
+		h_polarized = abs(self.weak_classifier_polarities - h)
+		pred[ dot(self.weak_classifier_weights, h_polarized) - sum_alpha * self.threshold > 0 ] = 1
+		print pred
 		return selected_indices[ pred == 1 ]
