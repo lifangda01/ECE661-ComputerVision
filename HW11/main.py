@@ -90,12 +90,12 @@ def load_car_dataset():
 		image = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
 		image = get_integral_image(image)
 		test_neg_data[:,i] = image.flatten()
-	print "Loading finished..."
-	print "Sizes...", train_pos_data.shape, train_neg_data.shape, test_pos_data.shape, test_neg_data.shape
 	train_data = hstack((train_pos_data, train_neg_data))
-	train_label = hstack(( ones(train_pos_data.shape[1]), zeros(train_pos_data.shape[1]) ))
+	train_label = hstack(( ones(train_pos_data.shape[1]), zeros(train_neg_data.shape[1]) ))
 	test_data = hstack((test_pos_data, test_neg_data))
-	test_label = hstack(( ones(test_pos_data.shape[1]), zeros(test_pos_data.shape[1]) ))
+	test_label = hstack(( ones(test_pos_data.shape[1]), zeros(test_neg_data.shape[1]) ))
+	print "Loading finished..."
+	print "Sizes...", train_data.shape, train_label.shape, test_data.shape, test_label.shape
 	return train_data, train_label, test_data, test_label
 
 def main():
@@ -115,12 +115,13 @@ def main():
 	elif 'AdaBoost' in algorithms:
 		f = 0.1
 		d = 0.99
-		F_target = 0.01
+		Ftarg = 0.01
+		maxIter = 10
 		train_data, train_label, test_data, test_label = load_car_dataset()
 		violajones = CascadedAdaBoostClassifier()
 		violajones.set_training_data(train_data, train_label)
 		violajones.set_testing_data(test_data, test_label)
-		violajones.train(f, d, F_target)
+		violajones.train(f, d, Ftarg, maxIter)
 
 if __name__ == '__main__':
 	main()

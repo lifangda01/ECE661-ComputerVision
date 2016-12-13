@@ -45,6 +45,7 @@ def _get_feature_matrix():
 		Return the feature matrix.
 	'''
 	features = zeros((NUMFEATURES, WIDTH*HEIGHT))
+	print "Constructing feature matrix...", features.shape
 	count = 0
 	# Do horizontal ones first, 1x2 base size
 	bW, bH = 2, 1
@@ -83,7 +84,10 @@ def _extract_features(data, feature_matrix):
 	# We are only concerned with two-rectangle edge features
 	# Get the sorted list of sample indices.
 	feature_vectors = dot( feature_matrix, data )
+	print "Feature vectors size...", feature_vectors.shape
+	print "Sorting samples based on feature values..."
 	sorted_indices = argsort(feature_vectors, axis=1)
+	print "Sorted indices size...", sorted_indices.shape
 	return sorted_indices, feature_vectors
 
 class CascadedAdaBoostClassifier(object):
@@ -104,13 +108,13 @@ class CascadedAdaBoostClassifier(object):
 		self.test_num_neg = 0
 		self.feature_matrix = _get_feature_matrix()
 
-	def set_training_data(train_data, train_label):
+	def set_training_data(self, train_data, train_label):
 		self.train_sorted_indices, self.train_feat_vecs = _extract_features(train_data, self.feature_matrix)
 		self.train_num_pos = sum(train_label)
 		self.train_num_neg = train_label.size - self.train_num_pos
 		self.train_data, self.train_label = train_data, train_label
 
-	def set_testing_data(test_data, test_label):
+	def set_testing_data(self, test_data, test_label):
 		self.test_sorted_indices, self.test_feat_vecs = _extract_features(test_data, self.feature_matrix)
 		self.test_num_pos = sum(test_label)
 		self.test_num_neg = test_label.size - self.test_num_pos
@@ -128,33 +132,36 @@ class CascadedAdaBoostClassifier(object):
 		Fcurr = 1.0
 		# Every iteration adds a new AdaBoost classifier
 		while Fcurr > Ftarg and i < maxIter:
+			print "Training %dth AdaBoost classifier in the cascade..." % i
 			i = i + 1
 			Fcurr = Fprev
 			# Add another AdaBoost classifier to our cascade
-			current_adaboost = _add_adaboost_classifier()
+			current_adaboost = self._add_adaboost_classifier()
 			# Every iteration adds a new feature
 			while Fcurr > f * Fprev:
+				print "Adding a new feature..."
 				# Add a new weak classifier to our current Adaboost classifier
 				current_adaboost.add_weak_classifier()
 				# Evaluate the current cascade
 				Fcurr, Dcurr = self.test()
 				# Decrease threshold until current cascade exceeds a certain detection rate
 				while Dcurr < d * Dprev:
+					print "Decreasing the threshold..."
 					current_adaboost.decrease_threshold(0.02)
 					Fcurr, Dcurr = self.test()
 
-	def _add_adaboost_classifier():
+	def _add_adaboost_classifier(self):
 		'''
 			Allocate and return a new AdaBoost classifier.
 		'''
 		c = AdaBoostClassifier()
 		c.set_feature_matrix(self.feature_matrix)
 		c.set_training_data(self.train_sorted_indices, self.train_feat_vecs, self.train_label)
-		c.set_testing_data(self.test_sorted_indices, self.test_feat_vecs, self.train_label):
-		self.cascaded_classfiers.append[c]
+		c.set_testing_data(self.test_sorted_indices, self.test_feat_vecs, self.train_label)
+		self.cascaded_classfiers.append(c)
 		return c
 
-	def test():
+	def test(self):
 		'''
 			Evaluate the cascade on test data and return FPR and detection rate.
 		'''
@@ -186,51 +193,102 @@ class AdaBoostClassifier(object):
 		self.test_num_neg = 0
 		self.threshold = 1.0
 		self.weights = None
+		self.weak_classifier_indices = array([])
+		self.weak_classifier_threshs = array([])
+		self.weak_classifier_weights = array([])
 
-	def set_feature_matrix(feature_matrix):
+	def set_feature_matrix(self, feature_matrix):
 		self.feature_matrix = feature_matrix
 
-	def set_training_data(train_sorted_indices, train_feat_vecs, train_label):
+	def set_training_data(self, train_sorted_indices, train_feat_vecs, train_label):
 		self.train_sorted_indices, self.train_feat_vecs = train_sorted_indices, train_feat_vecs
-		self.train_num_pos = sum(train_label)
+		self.train_num_pos = int(sum(train_label))
 		self.train_num_neg = train_label.size - self.train_num_pos
 		self.train_label = train_label
+		print "Number of positive / negative samples in training...", self.train_num_pos, self.train_num_neg
 
-	def set_testing_data(test_sorted_indices, test_feat_vecs, test_label):
+	def set_testing_data(self, test_sorted_indices, test_feat_vecs, test_label):
 		self.test_sorted_indices, self.test_feat_vecs = test_sorted_indices, test_feat_vecs
-		self.test_num_pos = sum(test_label)
+		self.test_num_pos = int(sum(test_label))
 		self.test_num_neg = test_label.size - self.test_num_pos
 		self.test_label = test_label
+		print "Number of positive / negative samples in testing...", self.test_num_pos, self.test_num_neg
 
-	def add_weak_classifier():
+	def add_weak_classifier(self):
 		'''
 			Add the current best weak classifier on the weighted training set.
 		'''
 		# Initialize all the weights if this is the first weak classifier
 		if not self.weights:
-			self.weights = array(self.test_label.size, dtype=float)
+			self.weights = zeros(self.test_label.size, dtype=float)
 			self.weights.fill( 1.0 / (2 * self.train_num_neg) )
-			self.weights[self.train_label].fill( 1.0 / (2 * self.train_num_pos) )
+			self.weights[self.train_label==1].fill( 1.0 / (2 * self.train_num_pos) )
 		# Normalize the weights otherwise
 		else:
 			self.weights = self.weights / sum(self.weights)
+		# Now pick the weak classifier with the min error with respect to the current weights
+		best_feat_index, best_feat_thresh, best_feat_error = self._get_best_weak_classifier()
+		# Update our list of weak classifiers
+		append(self.weak_classifier_indices, best_feat_index)
+		append(self.weak_classifier_threshs, best_feat_thresh)
+		# Get confidence value of the best new classifier
+		# Following the notation in the paper
+		beta = best_feat_error / (1 - best_feat_error)
+		alpha = log(1 / beta)
+		append(self.weak_classifier_weights, alpha)
+		# Update the weights of the samples
+		classified_labels = zeros(self.train_num_pos + self.train_num_neg)
+		classified_labels[ train_feat_vecs[best_feat_index, :] > best_feat_thresh ] = 1
+		e = abs(classified_labels - train_label)
+		self.weights = self.weights * beta**(1-e)
 
-	def _get_best_weak_classifier():
+	def _get_best_weak_classifier(self):
 		'''
 			Return the index of the best feature with the minimum weighted error.
 		'''
-		
+		feature_errors = zeros(NUMFEATURES)
+		feature_thresh = zeros(NUMFEATURES)
+		Tplus = sum(self.weights[self.train_label==1])
+		Tminus = sum(self.weights[self.train_label==0])
+		# For loop sucks
+		for r in range(NUMFEATURES):
+			# print self.train_sorted_indices
+			# print max(self.train_sorted_indices)
+			sorted_weights = self.weights[self.train_sorted_indices[r,:]]
+			sorted_labels = self.train_label[self.train_sorted_indices[r,:]]
+			Splus = cumsum(sorted_labels * sorted_weights)
+			Sminus = cumsum((1-sorted_labels) * sorted_weights)
+			errors = minimum(Splus + Tminus - Sminus, Sminus + Tplus - Splus)
+			min_error_sample_index = self.train_sorted_indices[argmin(errors)]
+			min_error = min(errors)
+			threshold = self.train_feat_vecs[r, min_error_sample_index]
+			feature_errors[r] = min_error
+			feature_thresh[r] = threshold
+		# Now pick the best one
+		best_feat_index = argmin(feature_errors)
+		best_feat_thresh = feature_thresh[best_feat_index]
+		best_feat_error = feature_errors[best_feat_index]
+		return best_feat_index, best_feat_thresh, best_feat_error
 
-	def decrease_threshold(step):
+	def decrease_threshold(self, step):
 		'''
 			Decrease the classification threshold by step.
 		'''
 		self.threshold = self.threshold - step
-		assert self.threshold >= 0.0, "AdaBoost decision threshold cannot be negative!"
+		assert self.threshold >= 0.0, "Decision threshold cannot be negative!"
 
-	def test(test_indices):
+	def test(self, selected_indices):
 		'''
 			Evaluate the strong classifier's performance given a decision threshold on given samples within the test data.
 			Return only the indices of the positive samples.
 		'''
-		pass
+		# Following notations in the paper
+		sum_alpha = sum(self.weak_classifier_weights)
+		selected_feat_vecs = self.test_feat_vecs[ :, selected_indices ]
+		# Only preserve the feature vector where the feature is used
+		selected_feat_vecs = selected_feat_vecs[self.weak_classifier_indices, :]
+		h = zeros(selected_feat_vecs.shape)
+		h[ selected_feat_vecs - self.weak_classifier_threshs.reshape(-1,1) > 0 ] = 1.0
+		pred = zeros(selected_indices.size)
+		pred[ dot(self.weak_classifier_weights, h) - sum_weights * self.threshold > 0 ] = 1
+		return selected_indices[ pred == 1 ]
