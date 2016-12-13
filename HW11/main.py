@@ -92,7 +92,11 @@ def load_car_dataset():
 		test_neg_data[:,i] = image.flatten()
 	print "Loading finished..."
 	print "Sizes...", train_pos_data.shape, train_neg_data.shape, test_pos_data.shape, test_neg_data.shape
-	return train_pos_data, train_neg_data, test_pos_data, test_neg_data
+	train_data = hstack((train_pos_data, train_neg_data))
+	train_label = hstack(( ones(train_pos_data.shape[1]), zeros(train_pos_data.shape[1]) ))
+	test_data = hstack((test_pos_data, test_neg_data))
+	test_label = hstack(( ones(test_pos_data.shape[1]), zeros(test_pos_data.shape[1]) ))
+	return train_data, train_label, test_data, test_label
 
 def main():
 	algorithms = ['AdaBoost'] # 'PCA', 'LDA', 'AdaBoost'
@@ -109,9 +113,14 @@ def main():
 		lda.train(train_data, train_label, 30)
 		lda.test(test_data, test_label)
 	elif 'AdaBoost' in algorithms:
-		train_pos_data, train_neg_data, test_pos_data, test_neg_data = load_car_dataset()
-		train_pos_featvec = extract_features(train_pos_data)
-		print(train_pos_featvec)
+		f = 0.1
+		d = 0.99
+		F_target = 0.01
+		train_data, train_label, test_data, test_label = load_car_dataset()
+		violajones = CascadedAdaBoostClassifier()
+		violajones.set_training_data(train_data, train_label)
+		violajones.set_testing_data(test_data, test_label)
+		violajones.train(f, d, F_target)
 
 if __name__ == '__main__':
 	main()
