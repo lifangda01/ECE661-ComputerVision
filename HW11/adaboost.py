@@ -93,8 +93,10 @@ def _extract_features(data, feature_matrix):
 	return sorted_indices, feature_vectors
 
 class CascadedAdaBoostClassifier(object):
-	def __init__(self):
+	def __init__(self, T, S):
 		super(CascadedAdaBoostClassifier, self).__init__()
+		self.T = T
+		self.S = S
 		self.cascaded_classfiers = []
 		self.train_data = None
 		self.train_label = None
@@ -185,7 +187,9 @@ class CascadedAdaBoostClassifier(object):
 		D = num_true_positive*1.0 / self.train_num_pos
 		# Calculate false positive rate by counting the zeros
 		F = (positive_indices.size - num_true_positive)*1.0 / self.train_num_pos
-		print "F = %.4f, D = %.4f" % (F,D)
+		w = self.train_num_pos*1.0 / (self.train_num_pos + self.train_num_neg)
+		A = D * w + (1-F)*(1-w)
+		print "F = %.4f, D = %.4f, A = %.4f" % (F,D,A)
 		return F, D
 
 class AdaBoostClassifier(object):
@@ -251,7 +255,7 @@ class AdaBoostClassifier(object):
 		# Following the notation in the paper
 		beta = best_feat_error / (1 - best_feat_error)
 		alpha = log(1 / beta)
-		print beta, alpha
+		print "beta = ", beta, "alpha = ", alpha
 		self.weak_classifier_weights = append(self.weak_classifier_weights, alpha)
 		# print "New best weak classifier"
 		# print "Indices, Polarities, Threshs, Weights"
@@ -275,11 +279,13 @@ class AdaBoostClassifier(object):
 		else:
 			self.weak_classifier_results = hstack((self.weak_classifier_results, best_feat_results.reshape(-1,1)))
 		self.weak_classifier_weighted_results = dot(self.weak_classifier_results, self.weak_classifier_weights)
-		print self.weak_classifier_results
-		print self.weak_classifier_weights
-		print self.weak_classifier_weighted_results
+		print self.weak_classifier_results,"weak_classifier_results"
+		print self.weak_classifier_weights, "weak_classifier_weights"
+		print self.weak_classifier_weighted_results, "weak_classifier_weighted_results"
 		self.threshold = sum(self.weak_classifier_weights)/2
 		# self.threshold = min(self.weak_classifier_weighted_results[self.train_label==1])
+		print self.weak_classifier_weighted_results > self.threshold, "classifier_output_labels"
+		print self.train_label, "grouth_truth"
 		print "Threshold =", self.threshold
 
 	def _get_best_weak_classifier(self):
@@ -354,5 +360,6 @@ class AdaBoostClassifier(object):
 		# pred = zeros(selected_indices.size)
 		# pred[ dot(self.weak_classifier_weights, h) > sum_alpha * self.threshold ] = 1
 		# # print pred
+		print "selected_indices", selected_indices
 		positive_selected_indices = self.weak_classifier_weighted_results[selected_indices] < self.threshold
 		return selected_indices[ positive_selected_indices ]
