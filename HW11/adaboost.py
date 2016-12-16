@@ -251,6 +251,7 @@ class AdaBoostClassifier(object):
 		# Following the notation in the paper
 		beta = best_feat_error / (1 - best_feat_error)
 		alpha = log(1 / beta)
+		print beta, alpha
 		self.weak_classifier_weights = append(self.weak_classifier_weights, alpha)
 		# print "New best weak classifier"
 		# print "Indices, Polarities, Threshs, Weights"
@@ -275,6 +276,7 @@ class AdaBoostClassifier(object):
 			self.weak_classifier_results = hstack((self.weak_classifier_results, best_feat_results.reshape(-1,1)))
 		self.weak_classifier_weighted_results = dot(self.weak_classifier_results, self.weak_classifier_weights)
 		print self.weak_classifier_results
+		print self.weak_classifier_weights
 		print self.weak_classifier_weighted_results
 		self.threshold = sum(self.weak_classifier_weights)/2
 		# self.threshold = min(self.weak_classifier_weighted_results[self.train_label==1])
@@ -352,5 +354,5 @@ class AdaBoostClassifier(object):
 		# pred = zeros(selected_indices.size)
 		# pred[ dot(self.weak_classifier_weights, h) > sum_alpha * self.threshold ] = 1
 		# # print pred
-		positive_selected_indices = self.weak_classifier_weighted_results[selected_indices] > self.threshold
+		positive_selected_indices = self.weak_classifier_weighted_results[selected_indices] < self.threshold
 		return selected_indices[ positive_selected_indices ]
