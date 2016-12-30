@@ -13,34 +13,6 @@ def get_integral_image(image):
 	'''
 	return cumsum(cumsum(image,axis=0),axis=1)
 
-# def _extract_features(intimg):
-	# '''
-	# 	Return a feature vector for a given image.
-	# '''
-	# features = zeros(NUMFEATURES)
-	# count = 0
-	# # Do horizontal ones first, 1x2 base size
-	# bW, bH = 2, 1
-	# for i in range(1, HEIGHT, bH): 					# Extend row-wise multiplier
-	# 	for j in range(1, WIDTH, bW): 				# Extend column-wise multiplier
-	# 		for y in range(0, HEIGHT - bH*i + 1):	# Iterate through the image 
-	# 			for x in range(0, WIDTH - bW*j + 1):
-	# 				features[count] = intimg[y,x] - 2*intimg[y,x+bW*j/2] \
-	# 								+ intimg[y,x+bW*j] - intimg[y+bH*i,x] \
-	# 								+ 2*intimg[y+bH*i,x+bW*j/2] - intimg[y+bH*i,x+bW*j]
-	# 				count = count + 1
-	# bW, bH = 1, 2
-	# for i in range(1, HEIGHT, bH): 					# Extend row-wise multiplier
-	# 	for j in range(1, WIDTH, bW): 				# Extend column-wise multiplier
-	# 		for y in range(0, HEIGHT - bH*i + 1):	# Iterate through the image 
-	# 			for x in range(0, WIDTH - bW*j + 1):
-	# 				features[count] = -intimg[y,x] + intimg[y,x+bW*j] \
-	# 								+ 2*intimg[y+bH*i/2,x] - 2*intimg[y+bH*i/2,x+bW*j] \
-	# 								- intimg[y+bH*i,x] + intimg[y+bH*i,x+bW*j]
-	# 				count = count + 1
-	# print "Total number of features...", count
-	# return features
-
 def _get_feature_matrix():
 	'''
 		Return the feature matrix.
@@ -93,46 +65,96 @@ def _extract_features(data, feature_matrix):
 	return sorted_indices, feature_vectors
 
 class CascadedAdaBoostClassifier(object):
-	def __init__(self, T, S):
+	def __init__(self, num_stages, num_feats_per_stage):
 		super(CascadedAdaBoostClassifier, self).__init__()
-		self.T = T
-		self.S = S
+		self.num_stages = num_stages
+		self.num_feats_per_stage = num_feats_per_stage
 		self.cascaded_classfiers = []
-		self.train_data = None
-		self.train_label = None
-		self.train_sorted_indices = None
-		self.train_feat_vecs = None
-		self.train_num_pos = 0
-		self.train_num_neg = 0
-		self.test_data = None
-		self.test_label = None
-		self.test_sorted_indices = None
-		self.test_feat_vecs = None
-		self.test_num_pos = 0
-		self.test_num_neg = 0
 		self.feature_matrix = _get_feature_matrix()
 
-	def set_training_data(self, train_data, train_label):
-		self.train_sorted_indices, self.train_feat_vecs = _extract_features(train_data, self.feature_matrix)
-		self.train_num_pos = sum(train_label)
-		self.train_num_neg = train_label.size - self.train_num_pos
-		self.train_data, self.train_label = train_data, train_label
+	def train(self, vecs, labels):
+		
+		num_pixels = vecs.shape[0]
+		num_samples = vecs.shape[1]
 
-	def set_testing_data(self, test_data, test_label):
-		self.test_sorted_indices, self.test_feat_vecs = _extract_features(test_data, self.feature_matrix)
-		self.test_num_pos = sum(test_label)
-		self.test_num_neg = test_label.size - self.test_num_pos
-		self.test_data, self.test_label = test_data, test_label
+		sorted_indices, feat_vecs = _extract_features(vecs, self.feature_matrix)
 
-	def train(self, f, d, Ftarg, maxIter):
-		'''
-			Train cascaded AdaBoost classifiers given user-defined:
-			max acceptable fpr per layer f, min acceptable detection rate per layer d,
-			and overall fpr F_target.
-		'''
-		i = 1
+		pos_feat_vecs = feat_vecs[labels==1]
+		neg_feat_vecs = feat_vecs[labels==0]
+
+		for i in range(self.num_stages):
+
+			# Initialize data structures for a single stage
+			curr_feat_mat = zeros((self.num_feats_per_stage, num_pixels))
+			curr_feat_wghts = zeros(self.num_feats_per_stage)
+			curr_feat_plr = zeros(self.num_feats_per_stage)
+			curr_feat_thrsh = zeros(self.num_feats_per_stage)
+			# Also the samples
+			curr_num_pos_samples = pos_feat_vecs.shape[1]
+	 		curr_num_neg_samples = neg_feat_vecs.shape[1]
+			curr_sample_wghts = zeros(curr_num_pos_samples + curr_num_neg_samples, dtype=float)
+			curr_sample_wghts[:curr_num_pos_samples].fill( 1.0 / (2 * curr_num_pos_samples) )
+			curr_sample_wghts[curr_num_pos_samples:].fill( 1.0 / (2 * curr_num_neg_samples) )
+			for j in range(self.num_feats_per_stage):
+				
+				# Normalize the weights otherwise
+				curr_sample_wghts = curr_sample_wghts / sum(curr_sample_wghts)
+
+				# Choose the best feature
+				feature_errors = zeros(NUMFEATURES)
+				feature_thresh = zeros(NUMFEATURES)
+				feature_polarity = zeros(NUMFEATURES)
+				feature_sorted_index = zeros(NUMFEATURES)
+				Tplus = sum(curr_sample_wghts[:curr_num_pos_samples])
+				Tminus = sum(curr_sample_wghts[curr_num_pos_samples:])
+
+				for r in range(NUMFEATURES):
+					sorted_weights = curr_sample_wghts[train_sorted_indices[r,:]]
+					sorted_labels = self.train_label[self.train_sorted_indices[r,:]]
+					# print "===="
+					# print "sorted_weights", sorted_weights
+					# print "sorted_labels", sorted_labels
+					Splus = cumsum(sorted_labels * sorted_weights)
+					Sminus = cumsum((1-sorted_labels) * sorted_weights)
+					# print "Splus", Splus
+					# print "Sminus", Sminus
+					# Error of choice influences the polarity
+					polarities = ones(self.train_num_pos + self.train_num_neg)
+					polarities[Splus + Tminus - Sminus > Sminus + Tplus - Splus] = -1
+					# print polarities
+					errors = minimum(Splus + Tminus - Sminus, Sminus + Tplus - Splus)
+					# print "errors", errors
+					sorted_index = argmin(errors)
+					min_error_sample_index = self.train_sorted_indices[r,sorted_index]
+					# print "min_error_sample_index", min_error_sample_index
+					min_error = min(errors)
+					# print "min_error", min_error
+					threshold = self.train_feat_vecs[r, min_error_sample_index]
+					polarity = polarities[min_error_sample_index]
+					# print "threshold", threshold
+					feature_errors[r] = min_error
+					feature_thresh[r] = threshold
+					feature_polarity[r] = polarity
+					feature_sorted_index[r] = sorted_index
+				# Now pick the best one
+				best_feat_index = argmin(feature_errors)
+				best_feat_thresh = feature_thresh[best_feat_index]
+				best_feat_error = feature_errors[best_feat_index]
+				best_feat_polarity = feature_polarity[best_feat_index]
+				best_feat_results = zeros(self.train_num_pos + self.train_num_neg)
+				best_sorted_index = feature_sorted_index[best_feat_index]
+				if best_feat_polarity == 1:
+					best_feat_results[ self.train_sorted_indices[best_feat_index, best_sorted_index:] ] = 1
+				else:
+					best_feat_results[ self.train_sorted_indices[best_feat_index, :best_sorted_index] ] = 1
+				# print best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error
+				return best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error, best_feat_results
+
+
+
+
+
 		# Preprocess the features
-		Fprev, Dprev = 1.0, 1.0
 		Flog = []
 		Dlog = []
 		Fcurr = 1.0
@@ -290,58 +312,7 @@ class AdaBoostClassifier(object):
 		print self.train_label, "grouth_truth"
 		print "Threshold =", self.threshold
 
-	def _get_best_weak_classifier(self):
-		'''
-			Return the index of the best feature with the minimum weighted error.
-		'''
-		feature_errors = zeros(NUMFEATURES)
-		feature_thresh = zeros(NUMFEATURES)
-		feature_polarity = zeros(NUMFEATURES)
-		feature_sorted_index = zeros(NUMFEATURES)
-		Tplus = sum(self.weights[self.train_label==1])
-		Tminus = sum(self.weights[self.train_label==0])
-		# For loop sucks
-		for r in range(NUMFEATURES):
-			sorted_weights = self.weights[self.train_sorted_indices[r,:]]
-			sorted_labels = self.train_label[self.train_sorted_indices[r,:]]
-			# print "===="
-			# print "sorted_weights", sorted_weights
-			# print "sorted_labels", sorted_labels
-			Splus = cumsum(sorted_labels * sorted_weights)
-			Sminus = cumsum((1-sorted_labels) * sorted_weights)
-			# print "Splus", Splus
-			# print "Sminus", Sminus
-			# Error of choice influences the polarity
-			polarities = ones(self.train_num_pos + self.train_num_neg)
-			polarities[Splus + Tminus - Sminus > Sminus + Tplus - Splus] = -1
-			# print polarities
-			errors = minimum(Splus + Tminus - Sminus, Sminus + Tplus - Splus)
-			# print "errors", errors
-			sorted_index = argmin(errors)
-			min_error_sample_index = self.train_sorted_indices[r,sorted_index]
-			# print "min_error_sample_index", min_error_sample_index
-			min_error = min(errors)
-			# print "min_error", min_error
-			threshold = self.train_feat_vecs[r, min_error_sample_index]
-			polarity = polarities[min_error_sample_index]
-			# print "threshold", threshold
-			feature_errors[r] = min_error
-			feature_thresh[r] = threshold
-			feature_polarity[r] = polarity
-			feature_sorted_index[r] = sorted_index
-		# Now pick the best one
-		best_feat_index = argmin(feature_errors)
-		best_feat_thresh = feature_thresh[best_feat_index]
-		best_feat_error = feature_errors[best_feat_index]
-		best_feat_polarity = feature_polarity[best_feat_index]
-		best_feat_results = zeros(self.train_num_pos + self.train_num_neg)
-		best_sorted_index = feature_sorted_index[best_feat_index]
-		if best_feat_polarity == 1:
-			best_feat_results[ self.train_sorted_indices[best_feat_index, best_sorted_index:] ] = 1
-		else:
-			best_feat_results[ self.train_sorted_indices[best_feat_index, :best_sorted_index] ] = 1
-		# print best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error
-		return best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error, best_feat_results
+
 
 	def test(self, selected_indices):
 		'''

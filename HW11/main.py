@@ -136,7 +136,7 @@ def main():
 		T = 10
 		S = 10
 		Ftarg = 0.01
-		maxIter = 10
+		maxIter = 3
 		train_data, train_label, test_data, test_label = load_car_dataset()
 		violajones = CascadedAdaBoostClassifier(T,S)
 		violajones.set_training_data(train_data, train_label)
