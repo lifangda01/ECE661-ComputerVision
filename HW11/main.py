@@ -57,7 +57,7 @@ def load_car_dataset():
 	'''
 	print "Loading car dataset..."
 	# Process training images first
-	train_path = './car-dataset-toy/train/'
+	train_path = './car-dataset/train/'
 	train_pos_files = [f for f in os.listdir(os.path.join(train_path, 'positive'))]
 	train_neg_files = [f for f in os.listdir(os.path.join(train_path, 'negative'))]
 	num_train = len(train_pos_files + train_neg_files)
@@ -74,7 +74,7 @@ def load_car_dataset():
 		image = get_integral_image(image)
 		train_neg_data[:,i] = image.flatten()
 	# Process testing images
-	test_path = './car-dataset-toy/test/'
+	test_path = './car-dataset/test/'
 	test_pos_files = [f for f in os.listdir(os.path.join(test_path, 'positive'))]
 	test_neg_files = [f for f in os.listdir(os.path.join(test_path, 'negative'))]
 	num_test = len(test_pos_files + test_neg_files)
@@ -96,6 +96,7 @@ def load_car_dataset():
 	test_label = hstack(( ones(test_pos_data.shape[1]), zeros(test_neg_data.shape[1]) ))
 	print "Loading finished..."
 	print "Sizes...", train_data.shape, train_label.shape, test_data.shape, test_label.shape
+	print "Type...", train_data.dtype, train_label.dtype
 	return train_data, train_label, test_data, test_label
 
 def PCVvsLDA(max_K):
@@ -138,10 +139,10 @@ def main():
 		Ftarg = 0.01
 		maxIter = 3
 		train_data, train_label, test_data, test_label = load_car_dataset()
-		violajones = CascadedAdaBoostClassifier(T,S)
-		violajones.set_training_data(train_data, train_label)
+		violajones = CascadedAdaBoostClassifier()
+		# violajones.set_training_data(train_data, train_label)
 		violajones.set_testing_data(test_data, test_label)
-		violajones.train(f, d, Ftarg, maxIter)
+		violajones.train(train_data, train_label)
 
 if __name__ == '__main__':
 	main()
