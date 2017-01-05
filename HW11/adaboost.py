@@ -70,16 +70,11 @@ class CascadedAdaBoostClassifier(object):
 		self.cascaded_adaboost = []
 		self.train_data = None
 		self.train_label = None
-		self.train_sorted_indices = None
 		self.train_feat_vecs = None
 		self.train_num_pos = 0
 		self.train_num_neg = 0
 		self.test_data = None
 		self.test_label = None
-		self.test_sorted_indices = None
-		self.test_feat_vecs = None
-		self.test_num_pos = 0
-		self.test_num_neg = 0
 		self.feature_matrix = _get_feature_matrix()
 
 	def set_testing_data(self, test_data, test_label):
@@ -98,44 +93,38 @@ class CascadedAdaBoostClassifier(object):
 		self.train_num_neg = train_label.size - self.train_num_pos
 		self.train_num = train_label.size
 		self.train_data, self.train_label = train_data, train_label
-
 		# Postive and negative training samples for current stage
 		all_pos_feat_vecs = self.train_feat_vecs[:,self.train_label==1]
 		all_neg_feat_vecs = self.train_feat_vecs[:,self.train_label==0]
 		pos_feat_vecs = all_pos_feat_vecs
 		neg_feat_vecs = all_neg_feat_vecs
-
 		Flog_train = []
 		Dlog_train = []
 		Alog_train = []
 		Flog_test = []
 		Dlog_test = []
 		Alog_test = []
-
 		# Add stages
 		for i in range(num_stages): 
-			print "Training %dth AdaBoost classifier in the cascade..." % i+1
+			print "Training %dth AdaBoost classifier in the cascade..." % (i+1)
 			current_adaboost = self._add_adaboost_classifier()
 			current_adaboost.set_training_feature_vectors(pos_feat_vecs, neg_feat_vecs)
 			# Add features
 			for j in range(num_feats):
-				print "Adding feature %d..." % j+1
+				print "Adding feature %d..." % (j+1)
 				current_adaboost.add_weak_classifier()
 			# Update negative samples to use
 			fp_indices,F,D,A = self._classify_training_data()
-
+			# Record training info
 			Flog_train.append(F)	
 			Dlog_train.append(D)
 			Alog_train.append(A)
-
 			neg_feat_vecs = all_neg_feat_vecs[:,fp_indices-self.train_num_pos]
-
+			# Record testing info
 			F,D,A = self.test()
-
 			Flog_test.append(F)	
 			Dlog_test.append(D)
 			Alog_test.append(A)
-
 			print "Training:"
 			print "FP:\n", Flog_train
 			print "RC:\n", Dlog_train
@@ -206,18 +195,11 @@ class CascadedAdaBoostClassifier(object):
 class AdaBoostClassifier(object):
 	def __init__(self):
 		super(AdaBoostClassifier, self).__init__()
-		self.train_data = None
 		self.train_label = None
 		self.train_sorted_indices = None
 		self.train_feat_vecs = None
 		self.train_num_pos = 0
 		self.train_num_neg = 0
-		self.test_data = None
-		self.test_label = None
-		self.test_sorted_indices = None
-		self.test_feat_vecs = None
-		self.test_num_pos = 0
-		self.test_num_neg = 0
 		self.threshold = 1.0
 		self.sample_weights = None
 		self.weak_classifier_indices = array([], dtype=int)
@@ -272,10 +254,6 @@ class AdaBoostClassifier(object):
 		else:
 			self.weak_classifier_results = hstack((self.weak_classifier_results, best_feat_results.reshape(-1,1)))
 		self.weak_classifier_weighted_results = dot(self.weak_classifier_results, self.weak_classifier_weights)
-		# print self.weak_classifier_results,"weak_classifier_results"
-		# print self.weak_classifier_weights, "weak_classifier_weights"
-		# print self.weak_classifier_weighted_results, "weak_classifier_weighted_results"
-		# self.threshold = sum(self.weak_classifier_weights)/2
 		self.threshold = min(self.weak_classifier_weighted_results[self.train_label==1])
 
 	def _get_best_weak_classifier(self):
@@ -321,7 +299,7 @@ class AdaBoostClassifier(object):
 			best_feat_results[ self.train_sorted_indices[best_feat_index, best_sorted_index:] ] = 1
 		else:
 			best_feat_results[ self.train_sorted_indices[best_feat_index, :best_sorted_index] ] = 1
-		print 'best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error'
+		print 'index, polarity, thresh, error'
 		print best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error
 		return best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error, best_feat_results
 

@@ -137,8 +137,7 @@ def plot_adaboost():
 	show()	
 
 def main():
-	plot_adaboost()
-	algorithms = [] # 'PCA', 'LDA', 'AdaBoost'
+	algorithms = ['AdaBoost'] # 'PCA', 'LDA', 'AdaBoost'
 	# PCA
 	if 'PCA' in algorithms:
 		train_data, train_label, test_data, test_label = load_face_dataset()
@@ -152,10 +151,12 @@ def main():
 		lda.train(train_data, train_label, 30)
 		lda.test(test_data, test_label)
 	elif 'AdaBoost' in algorithms:
+		num_stages = 10
+		num_feats = 20
 		train_data, train_label, test_data, test_label = load_car_dataset()
 		violajones = CascadedAdaBoostClassifier()
 		violajones.set_testing_data(test_data, test_label)
-		violajones.train(train_data, train_label)
+		violajones.train(train_data, train_label, num_stages, num_feats)
 
 if __name__ == '__main__':
 	main()
