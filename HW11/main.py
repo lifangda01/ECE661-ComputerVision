@@ -99,7 +99,7 @@ def load_car_dataset():
 	print "Type...", train_data.dtype, train_label.dtype
 	return train_data, train_label, test_data, test_label
 
-def PCVvsLDA(max_K):
+def PCAvsLDA(max_K):
 	train_data, train_label, test_data, test_label = load_face_dataset()
 	pca_accu = zeros(max_K)
 	lda_accu = zeros(max_K)
@@ -117,8 +117,28 @@ def PCVvsLDA(max_K):
 	ylabel('Accuracy')
 	show()	
 
+def plot_adaboost():
+	F_train = array([0.3049, 0.2088, 0.1456, 0.1303, 0.1200, 0.1041, 0.1018, 0.0910, 0.0899])*100.0
+	D_train = array([1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 1.0000, 0.9986, 0.9972])*100.0
+	A_train = array([0.7828, 0.8513, 0.8963, 0.9072, 0.9145, 0.9259, 0.9275, 0.9348, 0.9352])*100.0
+	F_test = array([0.3341, 0.2477, 0.1773, 0.1568, 0.1432, 0.1409, 0.1386, 0.1318, 0.1318])*100.0
+	D_test = array([0.9831, 0.9663, 0.9551, 0.9438, 0.9438, 0.9382, 0.9382, 0.9382, 0.9382])*100.0
+	A_test = array([0.7573, 0.8139, 0.8608, 0.8722, 0.8819, 0.8819, 0.8835, 0.8883, 0.8883])*100.0
+	N = len(F_train)
+	for train, test, name, loc in [(F_train, F_test, 'False Positive Rate', 1),
+								(D_train, D_test, 'Detection Rate', 3),
+								(A_train, A_test, 'Accuracy', 4)]:
+		figure()
+		line1, = plot(range(1,N+1), train, '-ro', label='Train')
+		line2, = plot(range(1,N+1), test, '-go', label='Test')
+		legend(handles=[line1, line2], loc=loc)
+		xlabel('N')
+		ylabel(name + ' (%)')
+	show()	
+
 def main():
-	algorithms = ['AdaBoost'] # 'PCA', 'LDA', 'AdaBoost'
+	plot_adaboost()
+	algorithms = [] # 'PCA', 'LDA', 'AdaBoost'
 	# PCA
 	if 'PCA' in algorithms:
 		train_data, train_label, test_data, test_label = load_face_dataset()
@@ -132,15 +152,8 @@ def main():
 		lda.train(train_data, train_label, 30)
 		lda.test(test_data, test_label)
 	elif 'AdaBoost' in algorithms:
-		f = 0.3
-		d = 0.9
-		T = 10
-		S = 10
-		Ftarg = 0.01
-		maxIter = 3
 		train_data, train_label, test_data, test_label = load_car_dataset()
 		violajones = CascadedAdaBoostClassifier()
-		# violajones.set_training_data(train_data, train_label)
 		violajones.set_testing_data(test_data, test_label)
 		violajones.train(train_data, train_label)
 

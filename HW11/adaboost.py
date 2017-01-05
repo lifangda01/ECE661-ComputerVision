@@ -4,7 +4,6 @@ import cv2
 
 WIDTH = 40
 HEIGHT = 20
-NUMFEATURES = 88935 # Obtained by _get_feature_matrix()
 NUMFEATURES = 47232 # Obtained by _get_feature_matrix()
 
 def get_integral_image(image):
@@ -87,7 +86,7 @@ class CascadedAdaBoostClassifier(object):
 		self.test_data = test_data
 		self.test_label = test_label
 
-	def train(self, train_data, train_label):
+	def train(self, train_data, train_label, num_stages, num_feats):
 	# def train(self, train_data, train_label, f, d, Ftarg, maxIter):
 		'''
 			Train cascaded AdaBoost classifiers given user-defined:
@@ -114,13 +113,13 @@ class CascadedAdaBoostClassifier(object):
 		Alog_test = []
 
 		# Add stages
-		for i in range(10): 
-			print "Training %dth AdaBoost classifier in the cascade..." % i
+		for i in range(num_stages): 
+			print "Training %dth AdaBoost classifier in the cascade..." % i+1
 			current_adaboost = self._add_adaboost_classifier()
 			current_adaboost.set_training_feature_vectors(pos_feat_vecs, neg_feat_vecs)
 			# Add features
-			for j in range(40):
-				print "Adding feature %d..." % j
+			for j in range(num_feats):
+				print "Adding feature %d..." % j+1
 				current_adaboost.add_weak_classifier()
 			# Update negative samples to use
 			fp_indices,F,D,A = self._classify_training_data()
@@ -137,14 +136,14 @@ class CascadedAdaBoostClassifier(object):
 			Dlog_test.append(D)
 			Alog_test.append(A)
 
-		print "Training:"
-		print "FP:\n", Flog_train
-		print "RC:\n", Dlog_train
-		print "AC:\n", Alog_train
-		print "Testing:"
-		print "FP:\n", Flog_test
-		print "RC:\n", Dlog_test
-		print "AC:\n", Alog_test
+			print "Training:"
+			print "FP:\n", Flog_train
+			print "RC:\n", Dlog_train
+			print "AC:\n", Alog_train
+			print "Testing:"
+			print "FP:\n", Flog_test
+			print "RC:\n", Dlog_test
+			print "AC:\n", Alog_test
 
 	def _add_adaboost_classifier(self):
 		'''
@@ -168,7 +167,6 @@ class CascadedAdaBoostClassifier(object):
 			# Only pass on the samples with postive predictions
 			feat_vecs = feat_vecs[:,preds==1]
 			pos_indices = pos_indices[preds==1]
-			# print pos_indices
 		# Final prediction
 		fp_indices = pos_indices[ self.train_label[pos_indices] == 0 ]
 		num_tp = sum(self.train_label[pos_indices])
@@ -195,7 +193,6 @@ class CascadedAdaBoostClassifier(object):
 			# Only classify the samples with postive predictions
 			feat_vecs = feat_vecs[:,preds==1]
 			pos_indices = pos_indices[preds==1]
-			# print pos_indices
 		# Final prediction
 		num_tp = sum(self.test_label[pos_indices])
 		D = num_tp*1.0 / test_num_pos
@@ -244,13 +241,6 @@ class AdaBoostClassifier(object):
 		self.train_sorted_indices = argsort(self.train_feat_vecs, axis=1)
 		print "Number of positive / negative samples in training...", self.train_num_pos, self.train_num_neg
 
-	# def set_training_data(self, train_sorted_indices, train_feat_vecs, train_label):
-	# 	self.train_sorted_indices, self.train_feat_vecs = train_sorted_indices, train_feat_vecs
-	# 	self.train_num_pos = int(sum(train_label))
-	# 	self.train_num_neg = train_label.size - self.train_num_pos
-	# 	self.train_label = train_label
-	# 	print "Number of positive / negative samples in training...", self.train_num_pos, self.train_num_neg
-
 	def add_weak_classifier(self):
 		'''
 			Add the current best weak classifier on the weighted training set.
@@ -263,22 +253,16 @@ class AdaBoostClassifier(object):
 		# Normalize the weights otherwise
 		else:
 			self.sample_weights = self.sample_weights / sum(self.sample_weights)
-		# print self.sample_weights
 		# Now pick the weak classifier with the min error with respect to the current weights
 		best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error, best_feat_results = self._get_best_weak_classifier()
 		# Update our list of weak classifiers
 		self.weak_classifier_indices = append(self.weak_classifier_indices, best_feat_index)
 		self.weak_classifier_polarities = append(self.weak_classifier_polarities, best_feat_polarity)
 		self.weak_classifier_threshs = append(self.weak_classifier_threshs, best_feat_thresh)
-		# If already perfect
-		# if isclose(best_feat_error,0):
-		# 	self.weak_classifier_weights = append(self.weak_classifier_weights, alpha)
-		# 	self.weak_classifier_results = hstack((self.weak_classifier_results, best_feat_results.reshape(-1,1)))
 		# Get confidence value of the best new classifier
 		# Following the notation in the paper
 		beta = best_feat_error / (1 - best_feat_error)
 		alpha = log(1 / abs(beta))
-		# print "beta = ", beta, "alpha = ", alpha
 		self.weak_classifier_weights = append(self.weak_classifier_weights, alpha)
 		e = abs(best_feat_results - self.train_label)
 		self.sample_weights = self.sample_weights * beta**(1-e)
@@ -293,11 +277,6 @@ class AdaBoostClassifier(object):
 		# print self.weak_classifier_weighted_results, "weak_classifier_weighted_results"
 		# self.threshold = sum(self.weak_classifier_weights)/2
 		self.threshold = min(self.weak_classifier_weighted_results[self.train_label==1])
-		temp_labels = zeros(self.weak_classifier_weighted_results.size)
-		temp_labels[self.weak_classifier_weighted_results > self.threshold] = 1
-		# print temp_labels, "classifier_output_labels"
-		# print self.train_label, "grouth_truth"
-		# print "Threshold =", self.threshold
 
 	def _get_best_weak_classifier(self):
 		'''
@@ -309,36 +288,24 @@ class AdaBoostClassifier(object):
 		feature_sorted_index = zeros(NUMFEATURES, dtype=int)
 		Tplus = sum(self.sample_weights[self.train_label==1])
 		Tminus = sum(self.sample_weights[self.train_label==0])
-		# For loop sucks
+		# Iterate to find the best feature
 		for r in range(NUMFEATURES):
 			sorted_weights = self.sample_weights[self.train_sorted_indices[r,:]]
 			sorted_labels = self.train_label[self.train_sorted_indices[r,:]]
-			# print "===="
-			# print "sorted_weights", sorted_weights
-			# print "sorted_labels", sorted_labels
 			Splus = cumsum(sorted_labels * sorted_weights)
-			# Sminus = cumsum((1-sorted_labels) * sorted_weights)
 			Sminus = cumsum(sorted_weights) - Splus
-			# print "Splus", Splus
-			# print "Sminus", Sminus
 			# Error of choice influences the polarity
 			Eplus = Splus + Tminus - Sminus
 			Eminus = Sminus + Tplus - Splus
 			polarities = zeros(self.train_num_pos + self.train_num_neg)
 			polarities[Eplus > Eminus] = -1
 			polarities[Eplus <= Eminus] = 1
-			# print polarities
 			errors = minimum(Eplus, Eminus)
-			# print "errors", errors
 			sorted_index = argmin(errors)
 			min_error_sample_index = self.train_sorted_indices[r,sorted_index]
-			# print "min_error_sample_index", min_error_sample_index
 			min_error = min(errors)
-			# print "min_error", min_error
 			threshold = self.train_feat_vecs[r, min_error_sample_index]
 			polarity = polarities[sorted_index]
-			# polarity = polarities[min_error_sample_index]
-			# print "threshold", threshold
 			feature_errors[r] = min_error
 			feature_thresh[r] = threshold
 			feature_polarity[r] = polarity
@@ -356,7 +323,6 @@ class AdaBoostClassifier(object):
 			best_feat_results[ self.train_sorted_indices[best_feat_index, :best_sorted_index] ] = 1
 		print 'best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error'
 		print best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error
-		# print self.weak_classifier_weights
 		return best_feat_index, best_feat_polarity, best_feat_thresh, best_feat_error, best_feat_results
 
 	def classify_feature_vectors(self, feat_vecs):
