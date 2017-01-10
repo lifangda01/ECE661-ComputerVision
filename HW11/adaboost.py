@@ -50,20 +50,6 @@ def _get_feature_matrix():
 	print "Total number of features...", count
 	return features
 
-def _extract_features(data, feature_matrix):
-	'''
-		Extract all features from integral images into a nFeatures x nSamples array.
-		Also return the sorted indices along the samples direction.
-	'''
-	# We are only concerned with two-rectangle edge features
-	# Get the sorted list of sample indices.
-	feature_vectors = dot( feature_matrix, data )
-	print "Feature vectors size...", feature_vectors.shape
-	print "Sorting samples based on feature values..."
-	sorted_indices = argsort(feature_vectors, axis=1)
-	print "Sorted indices size...", sorted_indices.shape
-	return sorted_indices, feature_vectors
-
 class CascadedAdaBoostClassifier(object):
 	def __init__(self):
 		super(CascadedAdaBoostClassifier, self).__init__()
@@ -125,14 +111,14 @@ class CascadedAdaBoostClassifier(object):
 			Flog_test.append(F)	
 			Dlog_test.append(D)
 			Alog_test.append(A)
-			print "Training:"
-			print "FP:\n", Flog_train
-			print "RC:\n", Dlog_train
-			print "AC:\n", Alog_train
-			print "Testing:"
-			print "FP:\n", Flog_test
-			print "RC:\n", Dlog_test
-			print "AC:\n", Alog_test
+		print "Training:"
+		print "FP:\n", Flog_train
+		print "RC:\n", Dlog_train
+		print "AC:\n", Alog_train
+		print "Testing:"
+		print "FP:\n", Flog_test
+		print "RC:\n", Dlog_test
+		print "AC:\n", Alog_test
 
 	def _add_adaboost_classifier(self):
 		'''
@@ -278,12 +264,14 @@ class AdaBoostClassifier(object):
 			polarities = zeros(self.train_num_pos + self.train_num_neg)
 			polarities[Eplus > Eminus] = -1
 			polarities[Eplus <= Eminus] = 1
+			# Find the minimum error
 			errors = minimum(Eplus, Eminus)
 			sorted_index = argmin(errors)
 			min_error_sample_index = self.train_sorted_indices[r,sorted_index]
 			min_error = min(errors)
 			threshold = self.train_feat_vecs[r, min_error_sample_index]
 			polarity = polarities[sorted_index]
+			# Record the current candidate feature
 			feature_errors[r] = min_error
 			feature_thresh[r] = threshold
 			feature_polarity[r] = polarity
